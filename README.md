@@ -2,191 +2,156 @@
 
 # COMMONS
 
-### From civic problems to measurable outcomes.
+### From civic problems to measurable outcomes
 
-**Problem → Project → Proof**
+**Problem to Project to Proof**
 
 [![Alibaba Cloud AI Hackathon Pakistan 2026](https://img.shields.io/badge/Alibaba%20Cloud-AI%20Hackathon%20Pakistan%202026-FF6A00?style=for-the-badge&logo=alibabacloud&logoColor=white)](https://www.alibabacloud.com/)
-[![Build Phase](https://img.shields.io/badge/status-build%20phase-1B5E20?style=for-the-badge)](#build-status)
+[![Project Status](https://img.shields.io/badge/status-build%20phase-1B5E20?style=for-the-badge)](#current-build-status)
 [![Qwen](https://img.shields.io/badge/AI-Qwen-6C47FF?style=for-the-badge)](https://www.alibabacloud.com/en/solutions/generative-ai/qwen)
 [![Next.js](https://img.shields.io/badge/web-Next.js-000000?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/data-Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 
-*A cloud-native civic collaboration platform that transforms an unstructured community issue into an actionable project, measurable KPIs, reviewed evidence, and a transparent Impact Passport.*
-
-[Vision](#the-vision) · [User Journey](#one-complete-user-journey) · [Architecture](#technical-architecture) · [Delivery Plan](#delivery-plan) · [Build Status](#build-status)
+COMMONS is a cloud based civic collaboration platform. It helps a community turn a reported problem into a clear project, track the work, measure the result, and show the evidence behind it.
 
 </div>
 
----
+## Project status
 
-> [!IMPORTANT]
-> COMMONS is currently in the **hackathon build phase**. This repository begins with the validated product scope and technical specification. Features marked as planned are not presented as completed. Working code, deployment links, and test evidence will be added as implementation progresses.
+COMMONS is in the build phase for the Alibaba Cloud AI Hackathon Pakistan 2026.
 
-## The vision
+The product scope, user journey, technical architecture, data model, safety rules, and delivery plan are complete. Application development is now starting. This README separates completed planning from features that are still being built.
 
-Civic problems rarely fail because nobody cares. They fail because the path from concern to coordinated, measurable action is fragmented.
+## Why we are building COMMONS
 
-A flooded street may begin as a WhatsApp message. A broken water line may become an unread email. A community proposal may remain inside a PDF. Even when people respond, responsibilities, measurements, evidence, and accountability are often spread across disconnected tools.
+Civic work often starts in the wrong place. A serious local problem may first appear in a WhatsApp message, an email, a complaint form, or a PDF. People discuss it, but the next steps are not clear. Tasks are not assigned. Measurements are not agreed on. Evidence is collected late, or not at all.
 
-**COMMONS creates one shared path from a reported problem to verifiable progress.**
+This creates four common problems:
 
-It brings together:
-
-- Citizens who experience and report problems
-- Community organizations coordinating local action
-- Public institutions responsible for services
-- Businesses, donors, and experts contributing resources
-- Reviewers and decision-makers evaluating results
-
-## The problem
-
-Today, civic initiatives commonly suffer from four gaps:
-
-| Gap | Consequence |
+| Problem | What happens |
 |---|---|
-| Unstructured reporting | Important context is lost across messages, forms, and documents |
-| Unclear ownership | Stakeholders cannot see who is responsible for the next action |
-| Weak measurement | Activity is mistaken for impact because KPIs are undefined or unmeasured |
-| Unverifiable outcomes | Success claims are disconnected from reviewed evidence |
+| Reports are unstructured | Important details are missed |
+| Ownership is unclear | People do not know who should act next |
+| Progress is hard to measure | Activity is reported as impact |
+| Evidence is disconnected | Results are difficult to trust |
 
-COMMONS addresses these gaps without pretending that AI can independently verify reality. AI helps structure the work; people confirm the plan, submit measurements, and review evidence.
+COMMONS gives citizens, community groups, public institutions, businesses, and volunteers one shared place to plan and track a civic project.
 
-## The solution
+## What COMMONS does
 
-A user describes a civic problem in everyday language and optionally provides a location and image. COMMONS AI converts that input into a structured project proposal containing:
+A user explains a civic problem in normal language and can also add a location and image. Qwen helps turn that report into a structured draft with:
 
-- A concise problem statement
-- Affected groups and relevant stakeholders
-- A measurable objective
-- Suggested milestones and tasks
-- KPI definitions and measurement requirements
-- Evidence needed to demonstrate progress
+- A short problem statement
+- The people affected
+- Relevant stakeholders
+- A clear objective
+- Suggested tasks and milestones
+- KPIs that should be measured
+- Evidence that should be collected
 
-The user reviews and edits the proposal before creating the project. The confirmed plan becomes a persistent workspace where contributors can manage tasks, record measurements, submit evidence, and generate an Impact Passport based only on stored project records.
+The user reviews the draft before creating the project. Nothing becomes an official project record until a person confirms it.
 
-## One complete user journey
+After confirmation, the project is saved in a shared workspace. Team members can assign tasks, record measurements, upload evidence, review that evidence, and create an Impact Passport.
 
-The hackathon MVP focuses on a single end-to-end journey rather than disconnected feature screens.
+## The first complete demo
 
-1. **Report** — A citizen or organization submits a civic problem, location, and optional image.
-2. **Structure** — Qwen returns a schema-constrained project proposal.
-3. **Review** — A human confirms or edits the AI-generated plan.
-4. **Coordinate** — The approved plan becomes a project with contributors, tasks, owners, and deadlines.
-5. **Measure** — The team records KPI baseline, current value, target, unit, and measurement source.
-6. **Evidence** — Contributors upload time-stamped evidence linked to a task or KPI.
-7. **Verify** — A reviewer accepts, rejects, or requests clarification on evidence.
-8. **Publish** — COMMONS creates an Impact Passport from measured KPIs and accepted evidence.
+We are not trying to build a huge government portal during the hackathon. Our goal is to finish one complete and reliable user journey.
 
-### Demonstration scenario
+The first demo is based on this report:
 
-The first reference journey uses a recurring street-flooding problem:
+> "The street beside our school floods after heavy rain and blocks students and residents."
 
-> “The street beside our school floods after heavy rain, blocking students and residents.”
+The user journey is:
 
-COMMONS should transform this report into a reviewable plan with relevant stakeholders, drainage-inspection tasks, a measurement approach, and evidence requirements. Any example figures shown during development will be labeled as demonstration data—not real-world impact.
+1. A citizen submits the flooding report.
+2. Qwen returns a structured project draft.
+3. The user checks and edits the draft.
+4. COMMONS saves the confirmed project.
+5. Contributors receive tasks and deadlines.
+6. The team records KPI measurements and their sources.
+7. Contributors upload evidence linked to the work.
+8. A reviewer accepts, rejects, or questions the evidence.
+9. COMMONS creates an Impact Passport from the saved records.
+
+This use case is only the first demonstration. The same process can later support waste management, water access, road safety, education, health, and other community problems.
 
 ## Core MVP
 
-| Capability | What must work |
+| Area | What must work |
 |---|---|
-| Problem intake | Capture a title, description, location, and optional image |
-| AI project structuring | Return validated JSON through a protected Qwen API route |
-| Human confirmation | Allow edits before any project records are created |
-| Persistent workspace | Store projects, members, tasks, KPIs, and activity |
-| Task coordination | Assign owners, deadlines, and status |
-| KPI engine | Track baseline → current → target without inventing missing values |
-| Evidence workflow | Upload, hash, link, and review evidence |
-| Impact Passport | Summarize measured change and accepted evidence |
-| Failure handling | Show explicit retry, unmeasured, or inconclusive states |
+| Problem submission | Save a title, description, location, and optional image |
+| AI planning | Call Qwen through a protected server route and receive valid structured data |
+| Human review | Let the user edit the AI draft before creating a project |
+| Project workspace | Save projects, members, tasks, KPIs, and activity |
+| Task management | Assign an owner, deadline, and status |
+| KPI tracking | Store baseline, current value, target, unit, and source |
+| Evidence | Upload a file, create a hash, link it to the project, and review it |
+| Impact Passport | Show measured change and accepted evidence |
+| Failure states | Clearly show when AI, evidence, or measurement is unavailable |
 
-## What makes COMMONS different
+## Important product rules
 
-### 1. AI produces structure, not truth
+These rules are part of the product, not just notes for the demo.
 
-Qwen accelerates planning by converting a messy civic report into structured data. Its suggestions remain editable and cannot automatically become verified project facts.
+### AI helps with structure
 
-### 2. “Unmeasured” is a valid state
+Qwen can suggest a plan, but it cannot decide that a claim is true. Every generated plan stays editable until a person confirms it.
 
-COMMONS never converts missing KPI data into 0%, estimated progress, or a success claim. A KPI remains unmeasured until a source-backed measurement is recorded.
+### Missing data stays missing
 
-### 3. Evidence has a review lifecycle
+If a KPI has no current measurement, COMMONS will show it as unmeasured. It will not turn missing data into zero, an estimated percentage, or a success claim.
 
-Evidence is not counted as verified simply because a file was uploaded. It moves through explicit states:
+### Uploading evidence does not verify it
 
-`SUBMITTED → UNDER_REVIEW → ACCEPTED / REJECTED / CLARIFICATION_REQUIRED`
+Evidence follows a review process:
 
-### 4. The Impact Passport is derived, not generated
+`SUBMITTED -> UNDER_REVIEW -> ACCEPTED, REJECTED, or CLARIFICATION_REQUIRED`
 
-The passport is assembled from stored tasks, measurements, accepted evidence, and audit events. AI does not invent the final outcome.
+### The Impact Passport comes from records
+
+The final passport is built from saved tasks, KPI measurements, accepted evidence, and audit events. It is not a free form AI summary.
 
 ## Technical architecture
 
 ```mermaid
 flowchart TD
-    U["Citizen or organization"] --> UI["Next.js web application"]
-    UI --> API["Protected server API"]
-    API --> Q["Qwen via Alibaba Cloud Model Studio"]
+    U["Citizen or organization"] --> W["Next.js application"]
+    W --> A["Protected server API"]
+    A --> Q["Qwen on Alibaba Cloud Model Studio"]
     Q --> V["Schema validation and human review"]
-    V --> DB["Supabase PostgreSQL"]
-    UI --> DB
-    DB --> E["Evidence storage and review"]
-    DB --> P["Impact Passport"]
+    V --> D["Supabase PostgreSQL"]
+    W --> D
+    D --> E["Evidence storage and review"]
+    D --> P["Impact Passport"]
     E --> P
 ```
 
-### Technology choices
+### Technology stack
 
-| Layer | Technology | Reason |
+| Layer | Choice | Why we chose it |
 |---|---|---|
-| Web application | Next.js + TypeScript | One codebase for UI and protected server routes |
-| AI planning | Qwen through Alibaba Cloud Model Studio | Hackathon-aligned model access with structured-output support |
-| Validation | JSON Schema + runtime validation | Prevent malformed AI responses from creating records |
-| Database | Supabase PostgreSQL | Relational persistence for linked civic project data |
-| Authentication | Supabase Auth | User identity and project membership |
-| File storage | Supabase Storage | Evidence objects with controlled access |
-| Integrity | SHA-256 | Content fingerprint for uploaded evidence |
-| Deployment | Vercel | Fast, reproducible Next.js deployment |
-| Testing | Unit, integration, and end-to-end tests | Prove calculations, permissions, persistence, and failure states |
+| Frontend and server | Next.js with TypeScript | Keeps the user interface and protected API routes in one codebase |
+| AI planning | Qwen through Alibaba Cloud Model Studio | Fits the hackathon and supports structured model responses |
+| Validation | JSON Schema and runtime checks | Stops malformed AI output from creating bad records |
+| Database | Supabase PostgreSQL | Gives us a relational database for connected project data |
+| Authentication | Supabase Auth | Supports user accounts and project membership |
+| File storage | Supabase Storage | Stores project evidence with controlled access |
+| File integrity | SHA-256 | Creates a content fingerprint for each evidence file |
+| Deployment | Vercel | Provides a direct deployment path for the Next.js application |
+| Testing | Unit, integration, and end to end tests | Checks calculations, permissions, persistence, and failure handling |
 
-### Request flow
+## AI data contract
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Web as COMMONS Web
-    participant API as Server API
-    participant AI as Qwen
-    participant Data as Supabase
-
-    User->>Web: Submit civic problem
-    Web->>API: Validated input
-    API->>AI: Structured planning request
-    AI-->>API: Schema-constrained JSON
-    API-->>Web: Editable project proposal
-    User->>Web: Confirm or revise
-    Web->>Data: Create project records
-    Data-->>Web: Persistent project
-```
-
-## AI output contract
-
-The planning API will return data shaped like the following:
+The AI planning route will return a predictable object. A shortened example is shown below.
 
 ```json
 {
-  "problemSummary": "Recurring flooding blocks access beside a school.",
+  "problemSummary": "Flooding blocks access beside a school.",
   "affectedGroups": ["students", "residents", "nearby businesses"],
-  "stakeholders": [
-    {
-      "name": "Municipal drainage team",
-      "reason": "Responsible for drainage inspection and maintenance"
-    }
-  ],
-  "objective": "Establish a measured and evidence-backed response plan.",
+  "objective": "Create and measure a local response plan.",
   "tasks": [
     {
-      "title": "Document affected locations",
+      "title": "Document the affected locations",
       "ownerRole": "community contributor",
       "status": "not_started"
     }
@@ -198,116 +163,103 @@ The planning API will return data shaped like the following:
       "baseline": null,
       "current": null,
       "target": null,
-      "measurementMethod": "time-stamped incident log"
+      "measurementMethod": "time stamped incident log"
     }
   ],
   "evidenceRequirements": [
-    "Time-stamped location photographs",
+    "Location photographs",
     "Drainage inspection record",
-    "Incident log before and after intervention"
+    "Incident log before and after action"
   ]
 }
 ```
 
-Notice that unknown measurements remain `null`. The model defines what should be measured; it does not fabricate the measurement.
+The null values are intentional. Qwen can suggest what should be measured, but the team must provide the real measurements.
 
 ## Data model
 
 | Entity | Purpose |
 |---|---|
-| `users` | Authenticated contributors and reviewers |
-| `projects` | Confirmed civic initiatives |
-| `project_members` | Role-based project membership |
-| `tasks` | Actions, owners, deadlines, and status |
-| `kpis` | Metric definition, unit, target, and measurement method |
-| `kpi_measurements` | Source-backed values recorded over time |
-| `evidence` | File metadata, hash, contributor, and project linkage |
-| `evidence_reviews` | Reviewer decision and clarification notes |
-| `audit_events` | Append-only record of meaningful project actions |
+| `users` | Contributors and reviewers |
+| `projects` | Confirmed civic projects |
+| `project_members` | Membership and project roles |
+| `tasks` | Work, owners, deadlines, and status |
+| `kpis` | Metric definitions and targets |
+| `kpi_measurements` | Values, dates, and measurement sources |
+| `evidence` | File details, hash, contributor, and project link |
+| `evidence_reviews` | Review decision and notes |
+| `audit_events` | History of important project actions |
 
-Row-level security will ensure that only authorized project members can modify protected records.
-
-## Trust and responsible-AI rules
-
-COMMONS is designed around explicit boundaries:
-
-- AI-generated content is labeled and editable.
-- API keys remain on the server.
-- AI failures return an explicit error or inconclusive state.
-- Missing KPI values remain unmeasured.
-- Evidence upload does not equal evidence acceptance.
-- Review decisions record the reviewer, time, status, and notes.
-- Sensitive civic data should be minimized and access-controlled.
-- The final Impact Passport reflects stored records rather than promotional claims.
+Supabase row level security will limit protected changes to authorized project members.
 
 ## Impact Passport
 
-The final passport answers six questions:
+The Impact Passport is the final output of a COMMONS project. It should answer:
 
-1. What problem was addressed?
-2. Who participated?
-3. What actions were completed?
+1. What problem did the project address?
+2. Who took part?
+3. What work was completed?
 4. What was measured?
-5. What changed between baseline and current measurement?
-6. Which accepted evidence supports the reported result?
+5. What changed?
+6. What accepted evidence supports the result?
 
-A passport can report **improvement shown**, **no improvement shown**, or **insufficient measurement**. It is designed to make uncertainty visible rather than hiding it.
+The outcome may be improvement shown, no improvement shown, or insufficient measurement. Showing uncertainty is better than claiming a result that the data cannot support.
 
 ## Delivery plan
 
-| Date | Target outcome |
+| Date | Main target |
 |---|---|
-| 28 Aug | Repository, application foundation, data schema, landing page, and problem intake |
-| 29 Aug | Protected Qwen integration, structured-output contract, and proposal review |
-| 30 Aug | Persistent project creation and relational project data |
-| 31 Aug | Dashboard, task ownership, contributor roles, and activity history |
-| 1 Sep | KPI definition, measurement workflow, calculations, and unmeasured states |
-| 2 Sep | Evidence upload, hashing, linkage, and reviewer decisions |
-| 3 Sep | Impact Passport, deployment, permissions testing, and failure-state testing |
-| 4 Sep | Defect resolution, demo data, presentation, and recorded walkthrough |
+| 28 Aug | Repository, project setup, data schema, landing page, and problem form |
+| 29 Aug | Qwen integration, response validation, and plan review |
+| 30 Aug | Project creation and database persistence |
+| 31 Aug | Dashboard, tasks, roles, and activity history |
+| 1 Sep | KPI definitions, measurements, calculations, and unmeasured states |
+| 2 Sep | Evidence upload, hashing, links, and reviewer decisions |
+| 3 Sep | Impact Passport, deployment, permissions, and system testing |
+| 4 Sep | Final fixes, demo data, recorded walkthrough, and presentation |
 
-## Build status
+## Current build status
 
 | Workstream | Status |
 |---|---|
-| Product vision and problem definition | ✅ Complete |
-| Focused MVP and primary user journey | ✅ Complete |
-| Architecture and trust rules | ✅ Complete |
-| Repository initialization | ✅ Complete |
-| Next.js application | ⏳ Planned |
-| Qwen integration | ⏳ Planned |
-| Supabase schema and persistence | ⏳ Planned |
-| KPI and evidence workflows | ⏳ Planned |
-| Impact Passport | ⏳ Planned |
-| Deployment and test evidence | ⏳ Planned |
+| Product vision and problem definition | Complete |
+| MVP scope and user journey | Complete |
+| Architecture and product rules | Complete |
+| Repository and technical README | Complete |
+| Next.js application | Planned |
+| Qwen integration | Planned |
+| Supabase database | Planned |
+| KPI and evidence workflows | Planned |
+| Impact Passport | Planned |
+| Deployment and test results | Planned |
 
-This table will be updated as working code lands.
+This table will be updated as code is added.
 
 ## Planned repository structure
 
 ```text
 commons/
-├── app/
-│   ├── api/
-│   ├── projects/
-│   └── submit/
-├── components/
-├── lib/
-│   ├── ai/
-│   ├── auth/
-│   ├── db/
-│   └── validation/
-├── supabase/
-│   └── migrations/
-├── tests/
-├── public/
-├── .env.example
-└── README.md
+|-- app/
+|   |-- api/
+|   |-- projects/
+|   |-- submit/
+|-- components/
+|-- lib/
+|   |-- ai/
+|   |-- auth/
+|   |-- db/
+|   |-- validation/
+|-- supabase/
+|   |-- migrations/
+|-- tests/
+|-- public/
+|-- .env.example
+|-- README.md
 ```
 
-## Local development
+## Local setup
 
-The commands below will apply after the Next.js application foundation is committed.
+These commands will apply after the Next.js project is committed.
 
 ```bash
 git clone https://github.com/Syedsaadhhh/COMMONS-ALIBABA.git
@@ -326,52 +278,53 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-Secrets must never be committed to the repository.
+API keys and service credentials must not be committed.
 
 ## Definition of done
 
-The MVP is considered complete only when an evaluator can:
+The MVP is complete when a judge can:
 
-- Submit the flooding reference problem
-- Receive a real Qwen-generated, schema-valid proposal
-- Edit and confirm that proposal
+- Submit the flooding report
+- Receive a real, schema valid Qwen project draft
+- Edit and confirm the draft
 - Refresh the page and see the saved project
-- Assign and update a project task
-- Record a source-backed KPI measurement
+- Assign and update a task
+- Record a KPI measurement with a source
 - Upload evidence and complete a review decision
-- Generate an Impact Passport from stored records
-- Observe a safe state when AI or measurement data is unavailable
+- Generate an Impact Passport from saved records
+- See a clear failure state when AI or measurement data is unavailable
 
 ## Team
 
-| Member | Primary ownership |
-|---|---|
-| **Areeba Muhammad** | Product requirements, civic workflow, testing, quality assurance, documentation, and submission |
-| **Syed Saad** | Architecture, full-stack implementation, Qwen integration, database, deployment, and technical testing |
-| **Shared** | End-to-end validation, demonstration, and regional-round presentation |
+COMMONS is led by Syed Saad and Areeba Muhammad. The wider team owns the pitch, research, testing, and delivery together.
 
-## Hackathon alignment
+| Team member | Role | Main responsibility |
+|---|---|---|
+| **Syed Saad** | Technical Lead and Project Strategy | Overall project guidance, system architecture, backend development, Qwen integration, database, deployment, and technical quality |
+| **Areeba Muhammad** | Product and Operations Lead | Product decisions, civic workflow, frontend coordination, quality assurance, documentation, submission, and team coordination |
+| **Mustafa Ahmed** | Presentation and Pitch Lead | Pitch story, presentation deck, demo flow, speaking preparation, and final delivery |
+| **Urwa Rashid** | Research and Project Support | Civic research, use case validation, supporting content, testing help, and project assistance |
 
-COMMONS retains its registered civic-impact scope while strengthening the area identified for improvement: **technical implementation**.
+All four members will take part in final testing, demo preparation, and the regional round presentation.
 
-The build is intentionally optimized for:
+## What we will show the judges
 
-- A working end-to-end product
-- Real AI calls and validated structured output
-- Persistent cloud data
-- Explicit permissions and failure states
-- Honest KPI measurement
-- Reviewable evidence
-- A demonstrable impact artifact
+The project will be judged through the working product, not this README alone. Our final demonstration will focus on:
 
----
+- A complete journey from problem report to Impact Passport
+- A real Qwen API call with validated structured output
+- Data that remains saved after refresh
+- Clear user roles and permissions
+- KPI values linked to measurement sources
+- Evidence with an explicit review state
+- Honest handling of missing data and service failures
 
 <div align="center">
 
-### COMMONS
+## COMMONS
 
 **Turn concern into coordination. Turn activity into evidence. Turn evidence into measurable outcomes.**
 
-Built for the **Alibaba Cloud AI Hackathon Pakistan 2026**.
+Built for the Alibaba Cloud AI Hackathon Pakistan 2026.
 
 </div>
