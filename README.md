@@ -20,7 +20,7 @@ COMMONS is a cloud based civic collaboration platform. It helps a community turn
 
 COMMONS is in the build phase for the Alibaba Cloud AI Hackathon Pakistan 2026.
 
-The product scope, user journey, technical architecture, data model, safety rules, and delivery plan are complete. Application development is now starting. This README separates completed planning from features that are still being built.
+The product scope, user journey, technical architecture, data model, safety rules, and delivery plan are complete. The foundation codebase is now in place and covers problem submission, AI draft generation, and validation. Persistence, authentication, task collaboration, KPI entry, evidence review, and the Impact Passport are the next implementation phase.
 
 ## Why we are building COMMONS
 
@@ -39,11 +39,10 @@ COMMONS gives citizens, community groups, public institutions, businesses, and v
 
 ## What COMMONS does
 
-A user explains a civic problem in normal language and can also add a location and image. Qwen helps turn that report into a structured draft with:
+A user explains a civic problem in normal language and can also add a location and image URL. Qwen helps turn that report into a structured draft with:
 
 - A short problem statement
 - The people affected
-- Relevant stakeholders
 - A clear objective
 - Suggested tasks and milestones
 - KPIs that should be measured
@@ -65,7 +64,7 @@ The user journey is:
 
 1. A citizen submits the flooding report.
 2. Qwen returns a structured project draft.
-3. The user checks and edits the draft.
+3. The user checks the draft.
 4. COMMONS saves the confirmed project.
 5. Contributors receive tasks and deadlines.
 6. The team records KPI measurements and their sources.
@@ -73,21 +72,21 @@ The user journey is:
 8. A reviewer accepts, rejects, or questions the evidence.
 9. COMMONS creates an Impact Passport from the saved records.
 
-This use case is only the first demonstration. The same process can later support waste management, water access, road safety, education, health, and other community problems.
+Steps 1-3 are implemented as a working foundation. Steps 4-9 are the next build phase.
 
 ## Core MVP
 
-| Area | What must work |
-|---|---|
-| Problem submission | Save a title, description, location, and optional image |
-| AI planning | Call Qwen through a protected server route and receive valid structured data |
-| Human review | Let the user edit the AI draft before creating a project |
-| Project workspace | Save projects, members, tasks, KPIs, and activity |
-| Task management | Assign an owner, deadline, and status |
-| KPI tracking | Store baseline, current value, target, unit, and source |
-| Evidence | Upload a file, create a hash, link it to the project, and review it |
-| Impact Passport | Show measured change and accepted evidence |
-| Failure states | Clearly show when AI, evidence, or measurement is unavailable |
+| Area | Status | Notes |
+|---|---|---|
+| Problem submission | Implemented | Title, description, location, optional image URL. Client and server validation. |
+| AI planning | Implemented | Protected `/api/ai/plan` route calls Qwen, validates the response, retries transient failures, and returns a draft. |
+| Human review | Partial | The AI draft is displayed. Inline editing and persistence are coming next. |
+| Project workspace | Planned | Database schema ready; application UI not yet wired. |
+| Task management | Planned | Schema ready; workflow not implemented. |
+| KPI tracking | Planned | Schema ready; measurements must include a source. |
+| Evidence | Planned | Schema ready; upload, hashing, review states not implemented. |
+| Impact Passport | Planned | Will be derived from persisted records, not a free form AI summary. |
+| Failure states | Partial | AI failures are typed, sanitized, and tested. Other failure states will follow as features are built. |
 
 ## Important product rules
 
@@ -99,7 +98,7 @@ Qwen can suggest a plan, but it cannot decide that a claim is true. Every genera
 
 ### Missing data stays missing
 
-If a KPI has no current measurement, COMMONS will show it as unmeasured. It will not turn missing data into zero, an estimated percentage, or a success claim.
+If a KPI has no current measurement, COMMONS will show it as unmeasured. It will not turn missing data into zero, an estimated percentage, or a success claim. AI-generated drafts keep `baseline`, `current`, and `target` as `null`.
 
 ### Uploading evidence does not verify it
 
@@ -130,9 +129,9 @@ flowchart TD
 
 | Layer | Choice | Why we chose it |
 |---|---|---|
-| Frontend and server | Next.js with TypeScript | Keeps the user interface and protected API routes in one codebase |
+| Frontend and server | Next.js 16 with TypeScript | Keeps the user interface and protected API routes in one codebase |
 | AI planning | Qwen through Alibaba Cloud Model Studio | Fits the hackathon and supports structured model responses |
-| Validation | JSON Schema and runtime checks | Stops malformed AI output from creating bad records |
+| Validation | Zod runtime checks | Stops malformed AI output from creating bad records |
 | Database | Supabase PostgreSQL | Gives us a relational database for connected project data |
 | Authentication | Supabase Auth | Supports user accounts and project membership |
 | File storage | Supabase Storage | Stores project evidence with controlled access |
@@ -142,7 +141,7 @@ flowchart TD
 
 ## AI data contract
 
-The AI planning route will return a predictable object. A shortened example is shown below.
+The AI planning route returns a predictable object. A shortened example is shown below.
 
 ```json
 {
@@ -174,7 +173,7 @@ The AI planning route will return a predictable object. A shortened example is s
 }
 ```
 
-The null values are intentional. Qwen can suggest what should be measured, but the team must provide the real measurements.
+The null values are intentional. Qwen can suggest what should be measured, but the team must provide the real measurements. The API rejects any AI response that places numbers in these fields.
 
 ## Data model
 
@@ -190,7 +189,7 @@ The null values are intentional. Qwen can suggest what should be measured, but t
 | `evidence_reviews` | Review decision and notes |
 | `audit_events` | History of important project actions |
 
-Supabase row level security will limit protected changes to authorized project members.
+Supabase row level security limits protected changes to authorized project members. A security hardening migration addresses recursive RLS evaluation, broad email exposure, automatic profile creation, deterministic `updated_at` values, and required measurement sources.
 
 ## Impact Passport
 
@@ -205,53 +204,25 @@ The Impact Passport is the final output of a COMMONS project. It should answer:
 
 The outcome may be improvement shown, no improvement shown, or insufficient measurement. Showing uncertainty is better than claiming a result that the data cannot support.
 
-## Delivery plan
-
-| Date | Main target |
-|---|---|
-| 28 Aug | Repository, project setup, data schema, landing page, and problem form |
-| 29 Aug | Qwen integration, response validation, and plan review |
-| 30 Aug | Project creation and database persistence |
-| 31 Aug | Dashboard, tasks, roles, and activity history |
-| 1 Sep | KPI definitions, measurements, calculations, and unmeasured states |
-| 2 Sep | Evidence upload, hashing, links, and reviewer decisions |
-| 3 Sep | Impact Passport, deployment, permissions, and system testing |
-| 4 Sep | Final fixes, demo data, recorded walkthrough, and presentation |
-
-## Current build status
-
-| Workstream | Status |
-|---|---|
-| Product vision and problem definition | Complete |
-| MVP scope and user journey | Complete |
-| Architecture and product rules | Complete |
-| Repository and technical README | Complete |
-| Next.js application | Planned |
-| Qwen integration | Planned |
-| Supabase database | Planned |
-| KPI and evidence workflows | Planned |
-| Impact Passport | Planned |
-| Deployment and test results | Planned |
-
-This table will be updated as code is added.
-
-## Planned repository structure
+## Repository structure
 
 ```text
 commons/
 |-- app/
-|   |-- api/
-|   |-- projects/
-|   |-- submit/
+|   |-- api/ai/plan/       # Protected Qwen planning route
+|   |-- projects/          # Project list and detail placeholders
+|   |-- submit/            # Problem submission form
 |-- components/
+|   |-- ui/                # Reusable Button, ButtonLink, Input, Textarea, Card
+|   |-- ProblemForm.tsx    # Submission form + AI draft review
 |-- lib/
-|   |-- ai/
-|   |-- auth/
-|   |-- db/
-|   |-- validation/
+|   |-- ai/                # Schema, prompt, service, errors
+|   |-- auth/              # Auth helpers
+|   |-- db/                # Browser and server-only Supabase clients
+|   |-- validation/        # Zod schemas
 |-- supabase/
-|   |-- migrations/
-|-- tests/
+|   |-- migrations/        # Database schema and security hardening
+|-- src/__tests__/         # Unit and route tests
 |-- public/
 |-- .env.example
 |-- README.md
@@ -259,13 +230,12 @@ commons/
 
 ## Local setup
 
-These commands will apply after the Next.js project is committed.
-
 ```bash
 git clone https://github.com/Syedsaadhhh/COMMONS-ALIBABA.git
 cd COMMONS-ALIBABA
-npm install
+npm ci
 cp .env.example .env.local
+# Fill in DASHSCOPE_API_KEY and Supabase credentials in .env.local
 npm run dev
 ```
 
@@ -279,6 +249,37 @@ SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 API keys and service credentials must not be committed.
+
+## Verification commands
+
+```bash
+npm run typecheck   # TypeScript
+npm run lint        # ESLint
+npm run test        # Vitest
+npm run build       # Next.js production build
+```
+
+## Current build status
+
+| Workstream | Status |
+|---|---|
+| Product vision and problem definition | Complete |
+| MVP scope and user journey | Complete |
+| Architecture and product rules | Complete |
+| Repository, README, and local setup | Complete |
+| Next.js application foundation | Implemented |
+| Problem submission form | Implemented |
+| Qwen integration and response validation | Implemented |
+| AI failure handling (timeout, retry, typed errors) | Implemented |
+| Supabase database schema | Implemented |
+| Supabase RLS security hardening | Implemented (migration) |
+| Project persistence | Planned |
+| Authentication and route protection | Planned |
+| Task management | Planned |
+| KPI measurements | Planned |
+| Evidence upload, hashing, and review | Planned |
+| Impact Passport | Planned |
+| Deployment and end to end tests | Planned |
 
 ## Definition of done
 
