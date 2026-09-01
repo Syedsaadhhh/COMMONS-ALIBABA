@@ -156,6 +156,24 @@ describe("generatePlan", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("includes safe provider error details for rejected requests", async () => {
+    mockFetchResponse(
+      {
+        error: {
+          code: "model_not_found",
+          message: "The requested model is not available in this workspace.",
+        },
+      },
+      404,
+    );
+
+    const error = await generatePlan(submission).catch((e) => e);
+    expect(error).toBeInstanceOf(AIError);
+    expect(error.message).toContain("model_not_found");
+    expect(error.message).toContain("not available in this workspace");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("throws ai_invalid_response on malformed JSON", async () => {
     mockFetchResponse({
       choices: [{ message: { content: "not-json" } }],
