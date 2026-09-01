@@ -22,6 +22,30 @@ function isClientErrorStatus(status: number): boolean {
   return status === 400 || status === 401 || status === 403 || status === 404;
 }
 
+function cleanProviderDetail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  return cleaned ? cleaned.slice(0, 240) : null;
+}
+
+async function providerErrorSummary(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as {
+      code?: unknown;
+      message?: unknown;
+      error?: { code?: unknown; message?: unknown };
+    };
+
+    const code = cleanProviderDetail(data.error?.code ?? data.code);
+    const message = cleanProviderDetail(data.error?.message ?? data.message);
+    const details = [code, message].filter((value): value is string => Boolean(value));
+
+    return details.length > 0 ? ` Provider: ${details.join(": ")}` : "";
+  } catch {
+    return "";
+  }
+}
+
 function parseRetryAfter(header: string | null): number {
   if (!header) return BACKOFF_MS;
   const seconds = Number.parseInt(header, 10);
@@ -62,10 +86,12 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const providerDetails = await providerErrorSummary(response);
+
         if (isClientErrorStatus(response.status)) {
           throw new AIError(
             "ai_rejected_request",
-            `Qwen rejected the request (status ${response.status}).`,
+            `Qwen rejected the request (status ${response.status}).${providerDetails}`,
           );
         }
 
@@ -73,7 +99,7 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
           const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
           lastError = new AIError(
             "ai_unavailable",
-            `Qwen returned status ${response.status}.`,
+            `Qwen returned status ${response.status}.${providerDetails}`,
           );
           await delay(retryAfter);
           continue;
@@ -81,7 +107,7 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
 
         throw new AIError(
           "ai_unavailable",
-          `Qwen returned an error (status ${response.status}).`,
+          `Qwen returned an error (status ${response.status}).${providerDetails}`,
         );
       }
 
