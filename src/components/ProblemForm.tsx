@@ -4,11 +4,12 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { Card } from "@/components/ui/Card";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
 import type { AIPlan } from "@/lib/ai/schema";
 
 type FormErrors = Record<string, string>;
+
+const stages = ["Describe", "Review", "Create"];
 
 export function ProblemForm() {
   const [title, setTitle] = useState("");
@@ -21,24 +22,29 @@ export function ProblemForm() {
   const [planError, setPlanError] = useState<string | null>(null);
 
   function validate(): boolean {
-    const result = problemSubmissionSchema.safeParse({ title, description, location, imageUrl });
+    const result = problemSubmissionSchema.safeParse({
+      title,
+      description,
+      location,
+      imageUrl,
+    });
+
     if (!result.success) {
       const fieldErrors: FormErrors = {};
       for (const issue of result.error.issues) {
         const field = issue.path[0]?.toString();
-        if (field && !fieldErrors[field]) {
-          fieldErrors[field] = issue.message;
-        }
+        if (field && !fieldErrors[field]) fieldErrors[field] = issue.message;
       }
       setErrors(fieldErrors);
       return false;
     }
+
     setErrors({});
     return true;
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
     if (!validate()) return;
 
     setLoading(true);
@@ -59,154 +65,229 @@ export function ProblemForm() {
       }
 
       setPlan(data.plan);
-    } catch (err) {
-      setPlanError(err instanceof Error ? err.message : "Something went wrong");
+    } catch (error) {
+      setPlanError(
+        error instanceof Error ? error.message : "Something went wrong",
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="space-y-8">
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Report a Civic Problem
-          </h2>
+    <div className="problem-flow">
+      <ol className="flow-stages" aria-label="Civic brief stages">
+        {stages.map((stage, index) => {
+          const isCurrent = plan ? index === 1 : index === 0;
+          const isComplete = plan && index === 0;
 
-          <Input
-            label="Title"
-            placeholder="e.g. Street flooding beside the school"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            error={errors.title}
-          />
+          return (
+            <li
+              key={stage}
+              className={isCurrent ? "is-current" : isComplete ? "is-complete" : ""}
+            >
+              <span>{index + 1}</span>
+              <p>{stage}</p>
+            </li>
+          );
+        })}
+      </ol>
 
-          <Textarea
-            label="Description"
-            placeholder="Describe the problem in detail. What happens? Who is affected? When does it occur?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            error={errors.description}
-          />
+      <form onSubmit={handleSubmit} className="problem-form" noValidate>
+        <div className="problem-form__heading">
+          <div>
+            <p className="form-kicker">Civic brief · Step one</p>
+            <h2>Describe the problem as it exists today.</h2>
+          </div>
+          <span className="draft-state">Private draft</span>
+        </div>
 
-          <Input
-            label="Location"
-            placeholder="e.g. Street beside City School, Sector 4"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            error={errors.location}
-          />
+        <div className="problem-form__fields">
+          <div>
+            <Input
+              label="Brief title"
+              placeholder="Street flooding beside the school"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              error={errors.title}
+              maxLength={200}
+              autoComplete="off"
+            />
+            <div className="field-hint">
+              <span>Use a clear, specific description.</span>
+              <span>{title.length}/200</span>
+            </div>
+          </div>
 
-          <Input
-            label="Image URL (optional)"
-            placeholder="https://example.com/photo.jpg"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            error={errors.imageUrl}
-          />
+          <div>
+            <Textarea
+              label="What is happening?"
+              placeholder="Explain what happens, who is affected, how often it occurs, and what the community has already observed."
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              error={errors.description}
+              maxLength={5000}
+            />
+            <div className="field-hint">
+              <span>Facts and direct observations make the brief stronger.</span>
+              <span>{description.length}/5000</span>
+            </div>
+          </div>
 
-          <Button type="submit" disabled={loading}>
-            {loading ? "Generating Plan..." : "Generate Plan"}
+          <div className="problem-form__split">
+            <Input
+              label="Location"
+              placeholder="Area, street, landmark or district"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              error={errors.location}
+              maxLength={500}
+              autoComplete="street-address"
+            />
+
+            <Input
+              label="Supporting image link (optional)"
+              placeholder="https://..."
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              error={errors.imageUrl}
+              inputMode="url"
+              autoComplete="url"
+            />
+          </div>
+        </div>
+
+        <div className="problem-form__submit">
+          <div>
+            <strong>What Qwen will do</strong>
+            <p>Structure this report into a reviewable project brief. It will not verify the claim.</p>
+          </div>
+          <Button type="submit" size="lg" disabled={loading}>
+            {loading && <span className="button-spinner" aria-hidden="true" />}
+            {loading ? "Structuring brief..." : "Generate civic brief"}
           </Button>
-        </form>
-      </Card>
+        </div>
+      </form>
 
-      {planError && (
-        <Card className="border-red-200 bg-red-50">
-          <p className="text-sm font-medium text-red-800">
-            Failed to generate plan
-          </p>
-          <p className="mt-1 text-sm text-red-600">{planError}</p>
-        </Card>
-      )}
-
-      {plan && (
-        <Card className="border-emerald-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            AI Draft — Review Before Confirming
-          </h3>
-          <p className="mt-1 text-xs text-gray-500">
-            This is a draft generated by AI. Review, edit, and confirm before
-            creating an official project.
-          </p>
-
-          <div className="mt-4 space-y-4">
+      <div aria-live="polite">
+        {planError && (
+          <section className="form-message form-message--error">
+            <span aria-hidden="true">!</span>
             <div>
-              <h4 className="text-sm font-semibold text-gray-700">
-                Problem Summary
-              </h4>
-              <p className="text-sm text-gray-600">{plan.problemSummary}</p>
+              <h3>The brief could not be generated.</h3>
+              <p>{planError}</p>
+            </div>
+          </section>
+        )}
+
+        {plan && (
+          <section className="plan-review">
+            <header className="plan-review__header">
+              <div>
+                <p className="form-kicker">AI-generated draft · Human review required</p>
+                <h2>A structured starting point for the project.</h2>
+              </div>
+              <span className="draft-state draft-state--active">Ready to review</span>
+            </header>
+
+            <div className="plan-review__summary">
+              <div>
+                <span>Problem summary</span>
+                <p>{plan.problemSummary}</p>
+              </div>
+              <div>
+                <span>Objective</span>
+                <p>{plan.objective}</p>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700">
-                Affected Groups
-              </h4>
-              <ul className="mt-1 list-disc pl-5 text-sm text-gray-600">
-                {plan.affectedGroups.map((g) => (
-                  <li key={g}>{g}</li>
+            <div className="plan-review__section">
+              <div className="plan-review__section-heading">
+                <h3>Affected groups</h3>
+                <span>{plan.affectedGroups.length} identified</span>
+              </div>
+              <div className="token-list">
+                {plan.affectedGroups.map((group) => (
+                  <span key={group}>{group}</span>
                 ))}
-              </ul>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700">Objective</h4>
-              <p className="text-sm text-gray-600">{plan.objective}</p>
+            <div className="plan-review__columns">
+              <div className="plan-review__section">
+                <div className="plan-review__section-heading">
+                  <h3>Suggested tasks</h3>
+                  <span>{plan.tasks.length} tasks</span>
+                </div>
+                <div className="review-list">
+                  {plan.tasks.map((task, index) => (
+                    <article key={`${task.title}-${index}`}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h4>{task.title}</h4>
+                        <p>{task.ownerRole}</p>
+                      </div>
+                      <small>Suggested</small>
+                    </article>
+                  ))}
+                </div>
+              </div>
+
+              <div className="plan-review__section">
+                <div className="plan-review__section-heading">
+                  <h3>Measurement plan</h3>
+                  <span>{plan.kpis.length} KPIs</span>
+                </div>
+                <div className="review-list review-list--kpi">
+                  {plan.kpis.map((kpi, index) => (
+                    <article key={`${kpi.name}-${index}`}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h4>{kpi.name}</h4>
+                        <p>{kpi.unit}</p>
+                      </div>
+                      <small>Unmeasured</small>
+                    </article>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700">Tasks</h4>
-              <ul className="mt-1 space-y-1">
-                {plan.tasks.map((t, i) => (
-                  <li
-                    key={i}
-                    className="text-sm text-gray-600"
-                  >
-                    <span className="font-medium">{t.title}</span> — {t.ownerRole}
+            <div className="plan-review__section">
+              <div className="plan-review__section-heading">
+                <h3>Evidence the project should collect</h3>
+                <span>Review before use</span>
+              </div>
+              <ul className="evidence-list">
+                {plan.evidenceRequirements.map((requirement, index) => (
+                  <li key={requirement}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    {requirement}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700">KPIs</h4>
-              <ul className="mt-1 space-y-1">
-                {plan.kpis.map((k, i) => (
-                  <li key={i} className="text-sm text-gray-600">
-                    <span className="font-medium">{k.name}</span> ({k.unit}) —{" "}
-                    {k.baseline === null ? "Unmeasured" : k.baseline}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700">
-                Evidence Required
-              </h4>
-              <ul className="mt-1 list-disc pl-5 text-sm text-gray-600">
-                {plan.evidenceRequirements.map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button disabled title="Project persistence is coming in the next build phase.">
-              Confirm &amp; Create Project
-            </Button>
-            <Button variant="outline" onClick={() => setPlan(null)}>
-              Discard Draft
-            </Button>
-          </div>
-          <p className="mt-3 text-xs text-gray-500">
-            Project persistence, editing, and confirmation are the next build
-            phase. For now you can review the AI draft and generate a new one.
-          </p>
-        </Card>
-      )}
+            <footer className="plan-review__footer">
+              <div className="persistence-notice">
+                <span aria-hidden="true">i</span>
+                <p>
+                  Saving projects is not available in this version yet. You can
+                  review the draft, but you cannot create a project from it yet.
+                </p>
+              </div>
+              <div className="plan-review__actions">
+                <Button variant="outline" onClick={() => setPlan(null)}>
+                  Discard draft
+                </Button>
+                <Button disabled title="Saving projects is not available yet.">
+                  Confirm and create project
+                </Button>
+              </div>
+            </footer>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
