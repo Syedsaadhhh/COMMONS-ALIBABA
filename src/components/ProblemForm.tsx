@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
 import type { AIPlan } from "@/lib/ai/schema";
+import { createProjectFromDraft } from "@/lib/projects/client";
+import type { Coordinates } from "@/lib/projects/types";
 
 type FormErrors = Record<string, string>;
 
 const stages = ["Describe", "Review", "Create"];
 
 export function ProblemForm() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
@@ -20,6 +24,39 @@ export function ProblemForm() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<AIPlan | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function captureLocation() {
+    if (!navigator.geolocation) {
+      setLocationError("Location capture is not supported by this browser.");
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationError(null);
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 12_000,
+          maximumAge: 300_000,
+        });
+      });
+      setCoordinates({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    } catch {
+      setLocationError("Location was not shared. You can continue without a map pin.");
+    } finally {
+      setLocationLoading(false);
+    }
+  }
 
   function validate(): boolean {
     const result = problemSubmissionSchema.safeParse({
@@ -71,6 +108,30 @@ export function ProblemForm() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreateProject() {
+    if (!plan) return;
+
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const project = await createProjectFromDraft({
+        title,
+        description,
+        location,
+        imageUrl,
+        coordinates,
+        plan,
+      });
+      router.push(`/projects/${project.id}`);
+    } catch (error) {
+      setCreateError(
+        error instanceof Error ? error.message : "The project could not be created.",
+      );
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -155,6 +216,25 @@ export function ProblemForm() {
               autoComplete="url"
             />
           </div>
+
+          <div className="location-consent">
+            <div>
+              <strong>Optional project map</strong>
+              <p>
+                Share your device location only if you want a map pin on the
+                confirmed project. It is never inferred from the text above.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={captureLocation} disabled={locationLoading}>
+              {locationLoading ? "Capturing…" : coordinates ? "Location captured" : "Use my location"}
+            </Button>
+          </div>
+          {coordinates && (
+            <p className="location-signal" role="status">
+              Location captured with your permission. The project map will use this pin.
+            </p>
+          )}
+          {locationError && <p className="field-error">{locationError}</p>}
         </div>
 
         <div className="problem-form__submit">
@@ -272,18 +352,22 @@ export function ProblemForm() {
               <div className="persistence-notice">
                 <span aria-hidden="true">i</span>
                 <p>
-                  Saving projects is not available in this version yet. You can
-                  review the draft, but you cannot create a project from it yet.
+                  Confirming creates a private project record with its tasks and
+                  measurement plan. Qwen’s draft remains reviewable, not verified.
                 </p>
               </div>
               <div className="plan-review__actions">
                 <Button variant="outline" onClick={() => setPlan(null)}>
                   Discard draft
                 </Button>
-                <Button disabled title="Saving projects is not available yet.">
-                  Confirm and create project
+                <Button onClick={handleCreateProject} disabled={creating}>
+                  {creating && <span className="button-spinner" aria-hidden="true" />}
+                  {creating ? "Creating project…" : "Confirm and create project"}
                 </Button>
               </div>
+              {createError && (
+                <p className="form-message-inline" role="alert">{createError}</p>
+              )}
             </footer>
           </section>
         )}
