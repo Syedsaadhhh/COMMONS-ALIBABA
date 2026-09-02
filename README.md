@@ -35,6 +35,7 @@ Before creating a project, apply the SQL files in order from the Supabase SQL Ed
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_security_hardening.sql`
 3. `supabase/migrations/003_execution_mvp.sql`
+4. `supabase/migrations/004_function_execution_guard.sql`
 
 Then open **Authentication → Providers** and enable **Anonymous Sign-Ins**.
 
