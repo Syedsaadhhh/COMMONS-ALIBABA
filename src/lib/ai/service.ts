@@ -100,8 +100,9 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
           model,
           messages,
           response_format: { type: "json_object" },
+          enable_thinking: false,
           temperature: 0.2,
-          max_tokens: 2048,
+          max_tokens: 1600,
         }),
         signal: controller.signal,
       });
