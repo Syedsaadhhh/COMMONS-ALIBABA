@@ -28,6 +28,22 @@ function cleanProviderDetail(value: unknown): string | null {
   return cleaned ? cleaned.slice(0, 240) : null;
 }
 
+function networkFailureSummary(error: unknown): string {
+  if (!(error instanceof Error)) return "";
+
+  const errorName = cleanProviderDetail(error.name);
+  const cause = error.cause;
+  const causeCode =
+    cause && typeof cause === "object" && "code" in cause
+      ? cleanProviderDetail((cause as { code?: unknown }).code)
+      : null;
+
+  const details = [errorName, causeCode].filter(
+    (value): value is string => Boolean(value),
+  );
+  return details.length > 0 ? ` Network: ${details.join(" / ")}.` : "";
+}
+
 async function providerErrorSummary(response: Response): Promise<string> {
   const raw = await response.text();
   if (!raw.trim()) return "";
@@ -138,10 +154,11 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
       }
 
       const isAbort = error instanceof Error && error.name === "AbortError";
+      const networkDetails = networkFailureSummary(error);
       const message = isAbort
-        ? "Qwen request timed out."
+        ? `Qwen request timed out.${networkDetails}`
         : error instanceof Error
-          ? "Qwen request failed."
+          ? `Qwen request failed.${networkDetails}`
           : "Qwen request failed.";
 
       lastError = new AIError("ai_unavailable", message, error);
