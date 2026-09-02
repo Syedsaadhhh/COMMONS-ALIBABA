@@ -21,9 +21,8 @@ async function ensureUser() {
 
   const { data: anonymousUser, error: anonymousError } = await supabase.auth.signInAnonymously();
   if (anonymousError || !anonymousUser.user) {
-    throw new Error(
-      "A secure project session could not be created. Enable Anonymous Sign-Ins in Supabase Authentication, then try again.",
-    );
+    const detail = anonymousError?.message || "No anonymous user was returned.";
+    throw new Error(`A secure project session could not be created: ${detail}`);
   }
 
   return { supabase, user: anonymousUser.user };
