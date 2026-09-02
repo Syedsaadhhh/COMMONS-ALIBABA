@@ -64,6 +64,14 @@ describe("generatePlan", () => {
     const plan = await generatePlan(submission);
     expect(plan.problemSummary).toBe(validPlanResponse.problemSummary);
     expect(plan.kpis[0].baseline).toBeNull();
+
+    const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
+      body: string;
+    };
+    expect(JSON.parse(requestOptions.body)).toMatchObject({
+      enable_thinking: false,
+      max_tokens: 1600,
+    });
   });
 
   it("normalizes a trailing slash in the provider base URL", async () => {
