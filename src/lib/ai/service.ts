@@ -29,8 +29,11 @@ function cleanProviderDetail(value: unknown): string | null {
 }
 
 async function providerErrorSummary(response: Response): Promise<string> {
+  const raw = await response.text();
+  if (!raw.trim()) return "";
+
   try {
-    const data = (await response.json()) as {
+    const data = JSON.parse(raw) as {
       code?: unknown;
       message?: unknown;
       error?: { code?: unknown; message?: unknown };
@@ -42,7 +45,8 @@ async function providerErrorSummary(response: Response): Promise<string> {
 
     return details.length > 0 ? ` Provider: ${details.join(": ")}` : "";
   } catch {
-    return "";
+    const detail = cleanProviderDetail(raw);
+    return detail ? ` Provider: ${detail}` : "";
   }
 }
 
