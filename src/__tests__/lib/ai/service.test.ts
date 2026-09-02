@@ -174,6 +174,22 @@ describe("generatePlan", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("includes a safe non-JSON provider error detail", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      json: async () => {
+        throw new Error("Not JSON");
+      },
+      text: async () => "Not Found",
+    });
+
+    const error = await generatePlan(submission).catch((e) => e);
+    expect(error).toBeInstanceOf(AIError);
+    expect(error.message).toContain("Provider: Not Found");
+  });
+
   it("throws ai_invalid_response on malformed JSON", async () => {
     mockFetchResponse({
       choices: [{ message: { content: "not-json" } }],
