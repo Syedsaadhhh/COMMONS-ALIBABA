@@ -63,6 +63,7 @@ async function delay(ms: number): Promise<void> {
 
 async function callQwen(messages: QwenMessage[]): Promise<string> {
   const { apiKey, baseUrl, model } = getAiEnv();
+  const endpoint = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
   let lastError: AIError | null = null;
 
@@ -71,7 +72,7 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -91,11 +92,12 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
 
       if (!response.ok) {
         const providerDetails = await providerErrorSummary(response);
+        const providerTarget = ` Model: ${model}. Endpoint: ${endpoint}.`;
 
         if (isClientErrorStatus(response.status)) {
           throw new AIError(
             "ai_rejected_request",
-            `Qwen rejected the request (status ${response.status}).${providerDetails}`,
+            `Qwen rejected the request (status ${response.status}).${providerTarget}${providerDetails}`,
           );
         }
 
@@ -103,7 +105,7 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
           const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
           lastError = new AIError(
             "ai_unavailable",
-            `Qwen returned status ${response.status}.${providerDetails}`,
+            `Qwen returned status ${response.status}.${providerTarget}${providerDetails}`,
           );
           await delay(retryAfter);
           continue;
@@ -111,7 +113,7 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
 
         throw new AIError(
           "ai_unavailable",
-          `Qwen returned an error (status ${response.status}).${providerDetails}`,
+          `Qwen returned an error (status ${response.status}).${providerTarget}${providerDetails}`,
         );
       }
 
