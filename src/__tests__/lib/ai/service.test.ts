@@ -66,6 +66,24 @@ describe("generatePlan", () => {
     expect(plan.kpis[0].baseline).toBeNull();
   });
 
+  it("normalizes a trailing slash in the provider base URL", async () => {
+    vi.stubEnv(
+      "DASHSCOPE_BASE_URL",
+      "https://workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/",
+    );
+    vi.stubEnv("DASHSCOPE_MODEL", "qwen3.7-plus");
+    mockFetchResponse({
+      choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
+    });
+
+    await generatePlan(submission);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions",
+      expect.any(Object),
+    );
+  });
+
   it("retries on 500 and succeeds on the second attempt", async () => {
     mockFetchResponse({ error: "server error" }, 500);
     mockFetchResponse({
