@@ -37,8 +37,10 @@ function networkFailureSummary(error: unknown): string {
     cause && typeof cause === "object" && "code" in cause
       ? cleanProviderDetail((cause as { code?: unknown }).code)
       : null;
+  const causeMessage =
+    cause instanceof Error ? cleanProviderDetail(cause.message) : null;
 
-  const details = [errorName, causeCode].filter(
+  const details = [errorName, causeCode, causeMessage].filter(
     (value): value is string => Boolean(value),
   );
   return details.length > 0 ? ` Network: ${details.join(" / ")}.` : "";
