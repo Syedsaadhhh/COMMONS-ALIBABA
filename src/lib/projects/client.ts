@@ -14,10 +14,10 @@ import type {
 
 async function ensureUser() {
   const supabase = createClient();
-  const { data: currentUser, error: currentUserError } = await supabase.auth.getUser();
+  const { data: currentSession, error: currentSessionError } = await supabase.auth.getSession();
 
-  if (currentUserError) throw currentUserError;
-  if (currentUser.user) return { supabase, user: currentUser.user };
+  if (currentSessionError) throw currentSessionError;
+  if (currentSession.session?.user) return { supabase, user: currentSession.session.user };
 
   const { data: anonymousUser, error: anonymousError } = await supabase.auth.signInAnonymously();
   if (anonymousError || !anonymousUser.user) {
