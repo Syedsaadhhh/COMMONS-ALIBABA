@@ -158,9 +158,9 @@ async function callQwen(messages: QwenMessage[]): Promise<string> {
       const isAbort = error instanceof Error && error.name === "AbortError";
       const networkDetails = networkFailureSummary(error);
       const message = isAbort
-        ? `Qwen request timed out.${networkDetails}`
+        ? `Qwen request timed out. Endpoint: ${endpoint}.${networkDetails}`
         : error instanceof Error
-          ? `Qwen request failed.${networkDetails}`
+          ? `Qwen request failed. Endpoint: ${endpoint}.${networkDetails}`
           : "Qwen request failed.";
 
       lastError = new AIError("ai_unavailable", message, error);
