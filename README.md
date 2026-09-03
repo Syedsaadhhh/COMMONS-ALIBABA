@@ -1,45 +1,39 @@
 # COMMONS
 
-COMMONS turns a local civic problem into a project people can review, act on, and support with evidence.
+**Turn a local civic issue into an accountable project.**
 
-Built for the Alibaba Cloud AI Hackathon Pakistan 2026.
+COMMONS is a civic coordination platform built for the Alibaba Cloud AI Hackathon Pakistan 2026. It helps communities move from an observed problem to a structured brief, a confirmed project, measurable work, and evidence people can inspect.
 
-## What it does
+**Live app:** https://commons-alibaba.vercel.app
 
-1. Describe a local issue with its location and supporting context.
-2. Qwen turns the report into a draft objective, tasks, measurements, and evidence needs.
-3. A person reviews the draft and confirms a real project record.
-4. The workspace records task status, sourced KPI readings, evidence links, and an optional consented map pin.
+## How it works
 
-Qwen helps structure the work. It does not verify claims, invent progress, or approve evidence.
+1. A person reports a local problem with location and context.
+2. Qwen structures it into an objective, suggested tasks, KPIs, and evidence needs.
+3. A person reviews the draft and confirms the project.
+4. The project workspace tracks task status, sourced measurements, evidence references, and optional consented location data.
 
-## Current scope
+Qwen assists with structure. It does not verify claims, approve evidence, or invent progress.
 
-- Responsive public website with light and dark themes
-- Validated civic problem submission
-- Protected Qwen planning route with structured output validation
-- Confirmed private project records
-- Task status updates
-- KPI check-ins with a required source
-- Evidence link check-ins with a reference fingerprint
-- Consent-only location capture with OpenStreetMap
-- Supabase row-level security migrations
-- Automated tests for the planning flow
+## What is working now
 
-Projects created with anonymous sign-in belong to that browser session. Account-based collaboration, evidence file uploads, reviewer decisions, and the Impact Passport are the next product layers.
+- Validated civic problem submission and structured Qwen planning
+- Human confirmation before a project is created
+- Supabase-backed project, task, KPI, measurement, evidence, and audit records
+- Anonymous project sessions with row-level security
+- Task status updates and KPI readings with a required source
+- Evidence-link check-ins with a SHA-256 reference fingerprint
+- Consent-only project and evidence location capture
+- A clearly identified template fallback when Qwen is unavailable
+- Automated tests, TypeScript checks, and production builds
 
-## Supabase setup
+The repository also contains the next civic-trust layer: submitter/reviewer separation, duplicate and corroboration scoring, reviewer checklist components, trust timeline data, and supporting database rules. These controls are kept separate from the live execution flow until they are fully connected end to end.
 
-Before creating a project, apply the SQL files in order from the Supabase SQL Editor:
+## Stack
 
-1. `supabase/migrations/001_initial_schema.sql`
-2. `supabase/migrations/002_security_hardening.sql`
-3. `supabase/migrations/003_execution_mvp.sql`
-4. `supabase/migrations/004_function_execution_guard.sql`
+Next.js 16 · React 19 · TypeScript · Alibaba Cloud Model Studio / Qwen · Supabase · Vercel
 
-Then open **Authentication → Providers** and enable **Anonymous Sign-Ins**.
-
-## Local setup
+## Run locally
 
 ```bash
 git clone https://github.com/Syedsaadhhh/COMMONS-ALIBABA.git
@@ -49,26 +43,27 @@ cp .env.example .env.local
 npm run dev
 ```
 
-## Environment variables
+Use `.env.example` as the environment-variable reference. Keep real API keys and credentials out of Git.
+
+## Database setup
+
+Apply the migrations in this order:
+
+1. `001_initial_schema.sql`
+2. `002_security_hardening.sql`
+3. `003_execution_mvp.sql`
+4. `004_function_execution_guard.sql`
+5. `005_fix_project_policy_recursion.sql`
+6. `006_civic_trust.sql`
+
+Then enable **Anonymous Sign-Ins** in Supabase Authentication.
+
+## Verification
 
 ```bash
-NEXT_PUBLIC_SITE_URL=
-DASHSCOPE_API_KEY=
-DASHSCOPE_MODEL=qwen3.7-plus
-DASHSCOPE_BASE_URL=
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
-
-Use the OpenAI-compatible Model Studio endpoint for your own Alibaba workspace in `DASHSCOPE_BASE_URL`. Keep credentials in `.env.local` or Vercel environment variables. Never commit keys.
-
-## Commands
-
-```bash
-npm run dev
 npm run typecheck
 npm run lint
-npm run test
+npm test
 npm run build
 ```
 
@@ -80,3 +75,7 @@ npm run build
 | Areeba Muhammad | Product and Operations Lead |
 | Mustafa Ahmed | Presentation and Pitch Lead |
 | Urwa Rashid | Research and Project Support |
+
+## License
+
+MIT. See `LICENSE`.
