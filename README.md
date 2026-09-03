@@ -24,7 +24,7 @@ Qwen assists with structure. It does not verify claims, approve evidence, or inv
 - Task status updates and KPI readings with a required source
 - Evidence-link check-ins with a SHA-256 reference fingerprint
 - Consent-only project and evidence location capture
-- A clearly identified template fallback when Qwen is unavailable
+- Template fallback for Qwen outages, with source metadata returned by the API
 - Automated tests, TypeScript checks, and production builds
 
 The repository also contains the next civic-trust layer: submitter/reviewer separation, duplicate and corroboration scoring, reviewer checklist components, trust timeline data, and supporting database rules. These controls are kept separate from the live execution flow until they are fully connected end to end.
