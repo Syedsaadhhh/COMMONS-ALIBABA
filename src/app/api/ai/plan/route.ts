@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
-import { generatePlan } from "@/lib/ai/service";
+import { generatePlanWithFallback } from "@/lib/ai/service.fallback";
 import { AIError } from "@/lib/ai/errors";
 
 function correlationId(): string {
@@ -30,8 +30,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const plan = await generatePlan(submission.data);
-    return Response.json({ plan, status: "draft" });
+    const { plan, source, fallbackReason } = await generatePlanWithFallback(submission.data);
+    return Response.json({
+      plan,
+      status: "draft",
+      source,
+      ...(fallbackReason ? { fallbackReason } : {}),
+    });
   } catch (error) {
     if (error instanceof AIError) {
       console.error(`[api/ai/plan][${requestId}] ${error.code}: ${error.message}`);

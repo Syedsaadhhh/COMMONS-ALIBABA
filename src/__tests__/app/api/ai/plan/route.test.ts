@@ -84,30 +84,35 @@ describe("/api/ai/plan", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns 500 without upstream details on configuration_error", async () => {
+  it("returns a fallback plan (200) on configuration_error so the demo survives a missing API key", async () => {
     vi.mocked(generatePlan).mockRejectedValueOnce(
       new AIError("configuration_error", "Missing key"),
     );
 
     const response = await makeRequest(validSubmission);
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     const json = await response.json();
-    expect(json.error).toBe("AI service is not configured.");
-    expect(json.requestId).toBeDefined();
-    expect(json.detail).toBeUndefined();
-    expect(json.message).toBeUndefined();
+    expect(json.status).toBe("draft");
+    expect(json.source).toBe("fallback_template");
+    expect(json.fallbackReason).toContain("configuration_error");
+    expect(json.plan.problemSummary).toContain(validSubmission.title);
+    expect(json.plan.problemSummary).toContain(validSubmission.location);
+    expect(json.plan.tasks.length).toBeGreaterThan(0);
+    expect(json.plan.kpis.length).toBeGreaterThan(0);
   });
 
-  it("returns 503 on ai_unavailable", async () => {
+  it("returns a fallback plan (200) on ai_unavailable so the demo survives Qwen downtime", async () => {
     vi.mocked(generatePlan).mockRejectedValueOnce(
       new AIError("ai_unavailable", "Qwen timed out."),
     );
 
     const response = await makeRequest(validSubmission);
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
     const json = await response.json();
-    expect(json.error).toBe("AI service is temporarily unavailable.");
-    expect(json.requestId).toBeDefined();
+    expect(json.status).toBe("draft");
+    expect(json.source).toBe("fallback_template");
+    expect(json.fallbackReason).toContain("ai_unavailable");
+    expect(json.plan.problemSummary).toContain(validSubmission.title);
   });
 
   it("returns 502 on ai_rejected_request", async () => {
