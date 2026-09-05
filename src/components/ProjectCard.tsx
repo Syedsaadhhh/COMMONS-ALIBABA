@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
+import type {
+  ProjectTrustTimelineEvent,
+  TimelineEventKind,
+} from "@/lib/projects/timeline";
 
-export interface ProjectTrustTimelineEvent {
-  label: string;
-  at: string | Date;
-  kind?: "submitted" | "reviewed" | "corroborated" | "completed" | "default";
-}
+export type { ProjectTrustTimelineEvent };
 
 export interface ProjectTrustSignalsProps {
   corroborationCount: number;
@@ -25,7 +25,7 @@ function formatDate(value: string | Date): string {
   });
 }
 
-const TIMELINE_KIND_STYLES: Record<string, string> = {
+const TIMELINE_KIND_STYLES: Record<TimelineEventKind, string> = {
   submitted: "bg-sky-500",
   corroborated: "bg-indigo-500",
   reviewed: "bg-emerald-600",

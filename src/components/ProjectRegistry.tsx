@@ -1,31 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ProjectCard } from "@/components/ProjectCard";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { getSavedProjects } from "@/lib/projects/client";
-import type { ProjectRecord } from "@/lib/projects/types";
+import { getSavedProjectBundles } from "@/lib/projects/client";
+import { deriveProjectTimeline } from "@/lib/projects/timeline";
+import type { ProjectBundle } from "@/lib/projects/types";
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-}
+type SortBy = "updated" | "created" | "corroboration" | "verified";
 
 export function ProjectRegistry() {
-  const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [bundles, setBundles] = useState<ProjectBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | ProjectBundle["project"]["status"]>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("updated");
 
   useEffect(() => {
-    getSavedProjects()
-      .then(setProjects)
+    getSavedProjectBundles()
+      .then(setBundles)
       .catch((loadError) => {
         setError(loadError instanceof Error ? loadError.message : "Projects could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    let list = bundles.filter((bundle) => {
+      if (statusFilter !== "all" && bundle.project.status !== statusFilter) return false;
+      if (!query) return true;
+      const project = bundle.project;
+      return (
+        project.title.toLowerCase().includes(query) ||
+        (project.problem_summary ?? "").toLowerCase().includes(query) ||
+        project.location.toLowerCase().includes(query)
+      );
+    });
+
+    list = [...list].sort((a, b) => {
+      if (sortBy === "updated") {
+        return new Date(b.project.updated_at).getTime() - new Date(a.project.updated_at).getTime();
+      }
+      if (sortBy === "created") {
+        return new Date(b.project.created_at).getTime() - new Date(a.project.created_at).getTime();
+      }
+      if (sortBy === "corroboration") {
+        return b.project.corroboration_count - a.project.corroboration_count;
+      }
+      if (sortBy === "verified") {
+        return Number(b.project.community_verified) - Number(a.project.community_verified);
+      }
+      return 0;
+    });
+
+    return list;
+  }, [bundles, search, statusFilter, sortBy]);
 
   return (
     <main className="app-page">
@@ -54,7 +85,7 @@ export function ProjectRegistry() {
           </section>
         )}
 
-        {!loading && !error && projects.length === 0 && (
+        {!loading && !error && bundles.length === 0 && (
           <section className="registry-empty__main registry-empty__main--compact">
             <span className="registry-empty__mark" aria-hidden="true"><i /><i /><i /></span>
             <p className="form-kicker">No confirmed projects</p>
@@ -67,24 +98,79 @@ export function ProjectRegistry() {
           </section>
         )}
 
-        {!loading && !error && projects.length > 0 && (
-          <section className="project-card-grid" aria-label="Saved projects">
-            {projects.map((project) => (
-              <article className="project-card" key={project.id}>
-                <div className="project-card__meta">
-                  <span className="draft-state draft-state--active">{project.status}</span>
-                  <span>Created {formatDate(project.created_at)}</span>
-                </div>
-                <h2>{project.title}</h2>
-                <p>{project.problem_summary}</p>
-                <dl>
-                  <div><dt>Location</dt><dd>{project.location}</dd></div>
-                  <div><dt>Map signal</dt><dd>{project.latitude !== null ? "Captured with consent" : "Not captured"}</dd></div>
-                </dl>
-                <ButtonLink href={`/projects/${project.id}`} variant="outline">Open workspace</ButtonLink>
-              </article>
-            ))}
-          </section>
+        {!loading && !error && bundles.length > 0 && (
+          <>
+            <div className="registry-controls">
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search projects…"
+                aria-label="Search projects"
+              />
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+                aria-label="Filter by status"
+              >
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+                <option value="draft">Draft</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as SortBy)}
+                aria-label="Sort projects"
+              >
+                <option value="updated">Last updated</option>
+                <option value="created">Recently created</option>
+                <option value="corroboration">Most corroborated</option>
+                <option value="verified">Verified first</option>
+              </select>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="empty-copy">No projects match your filters.</p>
+            ) : (
+              <section className="project-card-grid" aria-label="Saved projects">
+                {filtered.map((bundle) => {
+                  const { project, tasks, kpis, evidence } = bundle;
+                  return (
+                    <ProjectCard
+                      key={project.id}
+                      title={project.title}
+                      problemSummary={project.problem_summary}
+                      location={project.location}
+                      status={project.status}
+                      imageUrl={project.image_url}
+                      objective={project.objective}
+                      tasks={tasks.map((task) => ({
+                        title: task.title,
+                        ownerRole: task.owner_role,
+                        status: task.status,
+                      }))}
+                      kpis={kpis.map((kpi) => ({
+                        name: kpi.name,
+                        unit: kpi.unit,
+                        baseline: kpi.baseline,
+                      }))}
+                      evidenceCount={evidence.length}
+                      trust={{
+                        corroborationCount: project.corroboration_count,
+                        communityVerified: project.community_verified,
+                        timeline: deriveProjectTimeline(bundle),
+                        reviewerDisplayName: null,
+                        submitterDisplayName: null,
+                      }}
+                      href={`/projects/${project.id}`}
+                    />
+                  );
+                })}
+              </section>
+            )}
+          </>
         )}
       </div>
     </main>

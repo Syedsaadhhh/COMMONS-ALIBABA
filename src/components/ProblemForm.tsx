@@ -6,9 +6,18 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
+import type { ProblemSubmission } from "@/lib/validation/problem";
 import type { AIPlan } from "@/lib/ai/schema";
-import { createProjectFromDraft } from "@/lib/projects/client";
-import type { Coordinates } from "@/lib/projects/types";
+import {
+  addCorroboration,
+  createProjectFromDraft,
+  findCandidateProjectsForDedup,
+} from "@/lib/projects/client";
+import {
+  decideDuplicateOrCorroboration,
+  type DedupeDecision,
+} from "@/lib/projects/dedup";
+import type { Coordinates, ProjectRecord } from "@/lib/projects/types";
 
 type FormErrors = Record<string, string>;
 
@@ -29,6 +38,13 @@ export function ProblemForm() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [dedupDecision, setDedupDecision] = useState<DedupeDecision | null>(
+    null,
+  );
+  const [matchedProject, setMatchedProject] = useState<ProjectRecord | null>(
+    null,
+  );
+  const [corroborating, setCorroborating] = useState(false);
 
   async function captureLocation() {
     if (!navigator.geolocation) {
@@ -80,10 +96,7 @@ export function ProblemForm() {
     return true;
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!validate()) return;
-
+  async function generatePlan() {
     setLoading(true);
     setPlanError(null);
     setPlan(null);
@@ -108,6 +121,86 @@ export function ProblemForm() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!validate()) return;
+
+    setDedupDecision(null);
+    setMatchedProject(null);
+    setLoading(true);
+    setPlanError(null);
+    setPlan(null);
+
+    try {
+      const submission: ProblemSubmission = {
+        title,
+        description,
+        location,
+        imageUrl,
+      };
+      const candidates = await findCandidateProjectsForDedup(submission);
+      const decision = decideDuplicateOrCorroboration({
+        submission,
+        coordinates: coordinates
+          ? { lat: coordinates.latitude, lng: coordinates.longitude }
+          : null,
+        candidates: candidates.map((candidate) => ({
+          id: candidate.id,
+          title: candidate.title,
+          description: candidate.description,
+          location: candidate.location,
+          coordinates:
+            candidate.latitude !== null && candidate.longitude !== null
+              ? { lat: candidate.latitude, lng: candidate.longitude }
+              : null,
+          createdAt: candidate.created_at,
+        })),
+      });
+
+      if (decision.action === "create_new") {
+        await generatePlan();
+        return;
+      }
+
+      setDedupDecision(decision);
+      setMatchedProject(
+        candidates.find((candidate) => candidate.id === decision.matchedProjectId) ??
+          null,
+      );
+    } catch (error) {
+      setPlanError(
+        error instanceof Error ? error.message : "Something went wrong",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCorroborate() {
+    if (!dedupDecision || dedupDecision.action !== "append_corroboration")
+      return;
+
+    setCorroborating(true);
+    setCreateError(null);
+    try {
+      await addCorroboration({
+        projectId: dedupDecision.matchedProjectId,
+        submission: { title, description, location, imageUrl },
+        matchedBy: dedupDecision.matchedBy,
+        similarityScore: dedupDecision.score,
+      });
+      router.push(`/projects/${dedupDecision.matchedProjectId}`);
+    } catch (error) {
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : "The corroboration could not be added.",
+      );
+    } finally {
+      setCorroborating(false);
     }
   }
 
@@ -250,6 +343,65 @@ export function ProblemForm() {
       </form>
 
       <div aria-live="polite">
+        {dedupDecision?.action === "append_corroboration" && matchedProject && (
+          <section className="corroboration-prompt">
+            <header className="corroboration-prompt__header">
+              <div>
+                <p className="form-kicker">Possible match · Human decision required</p>
+                <h2>This report looks similar to an existing project.</h2>
+              </div>
+              <span className="draft-state draft-state--active">
+                {Math.round(dedupDecision.score * 100)}% match
+              </span>
+            </header>
+
+            <p className="corroboration-prompt__copy">
+              Civic trust works best when related reports are linked instead of
+              scattered. If this is the same issue, add your report as
+              corroboration. Otherwise, start a new brief.
+            </p>
+
+            <article className="corroboration-prompt__candidate">
+              <h3>{matchedProject.title}</h3>
+              <p>
+                {matchedProject.problem_summary || matchedProject.description}
+              </p>
+              <div className="corroboration-prompt__meta">
+                <span>{matchedProject.location}</span>
+                <span className="draft-state">{matchedProject.status}</span>
+              </div>
+            </article>
+
+            <div className="corroboration-prompt__actions">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generatePlan}
+                disabled={loading || corroborating}
+              >
+                Start a new brief anyway
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCorroborate}
+                disabled={loading || corroborating}
+              >
+                {corroborating && (
+                  <span className="button-spinner" aria-hidden="true" />
+                )}
+                {corroborating
+                  ? "Adding corroboration…"
+                  : "Add my report to this project"}
+              </Button>
+            </div>
+            {createError && (
+              <p className="form-message-inline" role="alert">
+                {createError}
+              </p>
+            )}
+          </section>
+        )}
+
         {planError && (
           <section className="form-message form-message--error">
             <span aria-hidden="true">!</span>

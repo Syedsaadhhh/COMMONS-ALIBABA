@@ -25,6 +25,9 @@ export interface ProjectRecord {
   image_url: string | null;
   latitude: number | null;
   longitude: number | null;
+  created_by: string;
+  corroboration_count: number;
+  community_verified: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +59,8 @@ export interface MeasurementRecord {
   source: string;
 }
 
+export type EvidencePhase = "before" | "after" | "other";
+
 export interface EvidenceRecord {
   id: string;
   project_id: string;
@@ -63,9 +68,55 @@ export interface EvidenceRecord {
   description: string | null;
   file_url: string;
   file_hash: string;
+  phase: EvidencePhase;
   status: "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "CLARIFICATION_REQUIRED";
   latitude: number | null;
   longitude: number | null;
+  created_at: string;
+}
+
+export interface TaskEvidenceClaimRecord {
+  id: string;
+  task_id: string;
+  evidence_id: string;
+  claimed_by: string;
+  claim_kind: "addresses" | "proves" | "relates_to";
+  created_at: string;
+}
+
+export interface ProjectCorroborationRecord {
+  id: string;
+  project_id: string;
+  contributed_by: string;
+  title: string;
+  description: string | null;
+  location: string;
+  image_url: string | null;
+  matched_by: "geo" | "text" | "mixed";
+  similarity_score: number;
+  created_at: string;
+}
+
+export interface ProjectVerificationReviewRecord {
+  id: string;
+  project_id: string;
+  reviewer_id: string;
+  submitter_id: string;
+  evidence_matches_location: boolean;
+  evidence_matches_problem_type: boolean;
+  kpi_source_independent: boolean;
+  kpi_source_verifiable: boolean;
+  all_approved: boolean;
+  notes: string | null;
+  reviewed_at: string;
+}
+
+export interface ProjectStatusHistoryRecord {
+  id: string;
+  project_id: string;
+  actor_id: string | null;
+  event_type: string;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -75,4 +126,8 @@ export interface ProjectBundle {
   kpis: KpiRecord[];
   measurements: MeasurementRecord[];
   evidence: EvidenceRecord[];
+  taskEvidenceClaims: TaskEvidenceClaimRecord[];
+  corroboration: ProjectCorroborationRecord[];
+  verificationReviews: ProjectVerificationReviewRecord[];
+  statusHistory: ProjectStatusHistoryRecord[];
 }

@@ -45,6 +45,8 @@ export interface DedupeInput {
   similarityThreshold?: number;
 }
 
+export type MatchKind = "geo" | "text" | "mixed";
+
 export type DedupeDecision =
   | {
       action: "create_new";
@@ -55,6 +57,7 @@ export type DedupeDecision =
       matchedProjectId: string;
       score: number;
       reason: string;
+      matchedBy: MatchKind;
     };
 
 const EARTH_RADIUS_METRES = 6_371_000;
@@ -153,11 +156,16 @@ export function decideDuplicateOrCorroboration(input: DedupeInput): DedupeDecisi
     return { action: "create_new", reason: "No existing candidates to compare against." };
   }
 
-  let best: { candidate: CandidateProject; score: number; reason: string } | null =
-    null;
+  let best: {
+    candidate: CandidateProject;
+    score: number;
+    reason: string;
+    matchedBy: MatchKind;
+  } | null = null;
 
   for (const candidate of candidates) {
     const reasons: string[] = [];
+    let matchedBy: MatchKind = "text";
 
     // Spatial component (when coordinates are available on both sides).
     let spatial = 0;
@@ -166,6 +174,7 @@ export function decideDuplicateOrCorroboration(input: DedupeInput): DedupeDecisi
       if (distance <= radiusMetres) {
         spatial = 1 - distance / radiusMetres;
         reasons.push(`within ${Math.round(distance)}m`);
+        matchedBy = "geo";
       } else if (distance === Infinity) {
         spatial = 0;
       } else {
@@ -181,9 +190,23 @@ export function decideDuplicateOrCorroboration(input: DedupeInput): DedupeDecisi
     );
     const locScore = locationSimilarity(submission.location, candidate.location);
 
-    if (titleScore > 0.4) reasons.push(`title≈${titleScore.toFixed(2)}`);
-    if (descScore > 0.3) reasons.push(`desc≈${descScore.toFixed(2)}`);
-    if (locScore > 0.5) reasons.push(`loc≈${locScore.toFixed(2)}`);
+    let hasTextSignal = false;
+    if (titleScore > 0.4) {
+      reasons.push(`title≈${titleScore.toFixed(2)}`);
+      hasTextSignal = true;
+    }
+    if (descScore > 0.3) {
+      reasons.push(`desc≈${descScore.toFixed(2)}`);
+      hasTextSignal = true;
+    }
+    if (locScore > 0.5) {
+      reasons.push(`loc≈${locScore.toFixed(2)}`);
+      hasTextSignal = true;
+    }
+
+    if (matchedBy === "geo" && hasTextSignal) {
+      matchedBy = "mixed";
+    }
 
     // Weighted combination. Spatial proximity is the strongest signal when
     // available; text similarity carries the decision otherwise.
@@ -198,6 +221,7 @@ export function decideDuplicateOrCorroboration(input: DedupeInput): DedupeDecisi
         candidate,
         score: combined,
         reason: reasons.length ? reasons.join(", ") : "overall similarity",
+        matchedBy,
       };
     }
   }
@@ -208,6 +232,7 @@ export function decideDuplicateOrCorroboration(input: DedupeInput): DedupeDecisi
       matchedProjectId: best.candidate.id,
       score: best.score,
       reason: `Matched existing project "${best.candidate.title}" (${best.reason}).`,
+      matchedBy: best.matchedBy,
     };
   }
 
