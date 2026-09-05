@@ -171,7 +171,7 @@ export function ReviewerChecklist({
           </h3>
           <p className="mt-1 text-xs text-gray-500">
             Independent verification of evidence and KPI sources. Required
-            before the project can be marked as "Completed".
+            before the project can be marked as &ldquo;Completed&rdquo;.
           </p>
         </div>
         <span

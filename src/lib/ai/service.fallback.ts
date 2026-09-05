@@ -1,7 +1,10 @@
 import { generatePlan } from "@/lib/ai/service";
 import { AIError } from "@/lib/ai/errors";
+import { createLogger } from "@/lib/logging/logger";
 import type { AIPlan } from "@/lib/ai/schema";
 import type { ProblemSubmission } from "@/lib/validation/problem";
+
+const logger = createLogger({ service: "ai/fallback" });
 
 /**
  * COMMONS — AI fallback wrapper (Weakness 6).
@@ -148,9 +151,9 @@ export async function generatePlanWithFallback(
           ? `${error.name}: ${error.message}`
           : "Unknown AI failure";
 
-    console.warn(
-      `[ai/fallback] Qwen unavailable (${reason}); serving template fallback plan.`,
-    );
+    logger.warn("Qwen unavailable; serving template fallback plan.", {
+      reason,
+    });
 
     return {
       plan: fallbackPlan(submission),
