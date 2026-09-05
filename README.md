@@ -11,7 +11,9 @@ COMMONS is a civic coordination platform built for the Alibaba Cloud AI Hackatho
 1. A person reports a local problem with location and context.
 2. Qwen structures it into an objective, suggested tasks, KPIs, and evidence needs.
 3. A person reviews the draft and confirms the project.
-4. The project workspace tracks task status, sourced measurements, evidence references, and optional consented location data.
+4. The project workspace tracks task status, sourced measurements, evidence references, task-linked proof, and optional consented location data.
+5. Duplicate or near-duplicate reports are surfaced for human choice so a person can corroborate an existing project instead of silently creating a duplicate.
+6. Reviewer checks, corroboration history, before/after evidence, and the Evidence / Impact Passport keep trust signals inspectable without turning them into manufactured scores.
 
 Qwen assists with structure. It does not verify claims, approve evidence, or invent progress.
 
@@ -19,15 +21,18 @@ Qwen assists with structure. It does not verify claims, approve evidence, or inv
 
 - Validated civic problem submission and structured Qwen planning
 - Human confirmation before a project is created
-- Supabase-backed project, task, KPI, measurement, evidence, and audit records
+- Supabase-backed project, task, KPI, measurement, evidence, trust, and audit records
 - Anonymous project sessions with row-level security
 - Task status updates and KPI readings with a required source
 - Evidence-link check-ins with a SHA-256 reference fingerprint
+- Task-linked evidence claims and before/after evidence phases
+- Duplicate and near-duplicate detection with a human corroboration prompt
+- Corroboration count and trust timeline data
+- Independent reviewer checklist with submitter/reviewer separation
+- Evidence / Impact Passport view for an inspectable project proof record
 - Consent-only project and evidence location capture
 - Template fallback for Qwen outages, with source metadata returned by the API
-- Automated tests, TypeScript checks, and production builds
-
-The repository also contains the next civic-trust layer: submitter/reviewer separation, duplicate and corroboration scoring, reviewer checklist components, trust timeline data, and supporting database rules. These controls are kept separate from the live execution flow until they are fully connected end to end.
+- Automated tests, TypeScript checks, production builds, and deployment security headers
 
 ## Stack
 
@@ -55,8 +60,13 @@ Apply the migrations in this order:
 4. `004_function_execution_guard.sql`
 5. `005_fix_project_policy_recursion.sql`
 6. `006_civic_trust.sql`
+7. `007_final_security_integrity.sql`
+8. `008_proof_loop.sql`
+9. `009_security_cleanup.sql`
 
 Then enable **Anonymous Sign-Ins** in Supabase Authentication.
+
+The final cleanup migration moves the membership helper out of the exposed `public` API schema, keeps service-only timeline writes restricted, makes trust-table Data API grants explicit, and adds covering indexes for foreign keys used by authorization and audit queries.
 
 ## Verification
 
