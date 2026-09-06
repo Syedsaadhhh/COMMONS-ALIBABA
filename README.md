@@ -1,40 +1,37 @@
 # COMMONS
 
-**Turn a local civic issue into an accountable project.**
+**From a local problem to work people can follow.**
 
-COMMONS is a civic coordination platform built for the Alibaba Cloud AI Hackathon Pakistan 2026. It helps communities move from an observed problem to a structured brief, a confirmed project, measurable work, and evidence people can inspect.
+COMMONS is a civic coordination platform built for the Alibaba Cloud AI Hackathon Pakistan 2026. It gives a community report a clear next step: a reviewable project, practical tasks, measurable progress, and evidence that stays attached to the work.
 
-**Live app:** https://commons-alibaba.vercel.app
+**Live app:** [commons-alibaba.vercel.app](https://commons-alibaba.vercel.app)
 
-## How it works
+## What COMMONS does
 
-1. A person reports a local problem with location, context, and optional photos.
-2. Qwen structures it into an objective, suggested tasks, KPIs, and evidence needs. When images are attached, a vision-capable model analyses them as supplementary scene context.
-3. A person reviews the draft and confirms the project.
-4. The project workspace tracks task status, sourced measurements, evidence references, task-linked proof, and optional consented location data.
-5. Duplicate or near-duplicate reports are surfaced for human choice so a person can corroborate an existing project instead of silently creating a duplicate.
-6. Reviewer checks, corroboration history, before/after evidence, and the Evidence / Impact Passport keep trust signals inspectable without turning them into manufactured scores.
+- Lets people report a local problem with a precise location, direct observations, and up to three supporting photos.
+- Uses Qwen to turn the report into a concise project draft with an objective, tasks, KPIs, and evidence requirements.
+- Requires human review and confirmation before a draft becomes a project.
+- Keeps work visible through task updates, sourced KPI readings, evidence check-ins, before/after views, and an Evidence / Impact Passport.
+- Surfaces possible duplicate reports so people can corroborate existing work instead of creating silent duplicates.
 
-Qwen assists with structure. It does not verify claims, approve evidence, or invent progress.
+Qwen helps organise a report. It does not verify a claim, approve evidence, or decide that a project is complete.
 
-## What is working now
+## How the flow works
 
-- Validated civic problem submission and structured Qwen planning
-- Multi-image upload (JPEG/PNG/WebP, mobile camera capture) with client-side compression and EXIF stripping
-- Multimodal Qwen vision analysis of uploaded images, with text-only and template fallbacks disclosed to the user
-- Human confirmation before a project is created; images persist to private Supabase Storage only after confirmation
-- Supabase-backed project, task, KPI, measurement, evidence, trust, and audit records
-- Anonymous project sessions with row-level security
-- Task status updates and KPI readings with a required source
-- Evidence-link check-ins with a SHA-256 reference fingerprint, plus optional file upload hashed client-side
-- Task-linked evidence claims and before/after evidence phases
-- Duplicate and near-duplicate detection with a human corroboration prompt
-- Corroboration count and trust timeline data
-- Independent reviewer checklist with submitter/reviewer separation
-- Evidence / Impact Passport view for an inspectable project proof record
-- Consent-only project and evidence location capture
-- Template fallback for Qwen outages, with source metadata returned by the API
-- Automated tests, TypeScript checks, production builds, and deployment security headers
+1. **Report** — describe the problem, add its location, and optionally attach photos.
+2. **Draft** — Qwen creates a structured, reviewable plan. A configured vision model can use the photos as extra scene context.
+3. **Confirm** — a person checks the draft and creates the project.
+4. **Work** — the workspace tracks tasks, measurements, evidence, corroboration, and review activity.
+5. **Inspect** — the project passport brings the record together without pretending uncertainty has disappeared.
+
+## Privacy and trust boundaries
+
+- Report photos accept JPEG, PNG, and WebP. A user can select up to three photos, up to 5 MB each; they are optimised before the planning request.
+- Project photos are uploaded only after human confirmation and are kept in private Supabase Storage. The application uses short-lived signed URLs for display.
+- Evidence can be an external source link or an uploaded file. Uploaded evidence is hashed from the file bytes.
+- Device location is opt-in. COMMONS does not infer location from image metadata.
+- Anonymous Supabase sessions are used for low-friction participation, while row-level security limits project and media access to the relevant user and project members.
+- If visual analysis is unavailable, the API falls back to text-only planning and marks that visual analysis was not used. It never manufactures an image verdict.
 
 ## Stack
 
@@ -50,29 +47,39 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Use `.env.example` as the environment-variable reference. Keep real API keys and credentials out of Git.
+Set the values in `.env.local`; never commit it.
+
+| Variable | Purpose |
+| --- | --- |
+| `DASHSCOPE_API_KEY` | Server-side Alibaba Cloud Model Studio API key |
+| `DASHSCOPE_MODEL` | Text planning model; `qwen-plus` is the default |
+| `DASHSCOPE_VISION_MODEL` | Optional visual model for attached photos; use `qwen3-vl-flash` for the current balanced default |
+| `DASHSCOPE_BASE_URL` | Optional Model Studio OpenAI-compatible endpoint override |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase browser key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service key |
 
 ## Database setup
 
-Apply the migrations in this order:
+Apply the migrations in order, then enable **Anonymous Sign-Ins** in Supabase Authentication.
 
-1. `001_initial_schema.sql`
-2. `002_security_hardening.sql`
-3. `003_execution_mvp.sql`
-4. `004_function_execution_guard.sql`
-5. `005_fix_project_policy_recursion.sql`
-6. `006_civic_trust.sql`
-7. `007_final_security_integrity.sql`
-8. `008_proof_loop.sql`
-9. `009_security_cleanup.sql`
-10. `010_project_images.sql`
-11. `011_evidence_media.sql`
+```text
+001_initial_schema.sql
+002_security_hardening.sql
+003_execution_mvp.sql
+004_function_execution_guard.sql
+005_fix_project_policy_recursion.sql
+006_civic_trust.sql
+007_final_security_integrity.sql
+008_proof_loop.sql
+009_security_cleanup.sql
+010_project_images.sql
+011_evidence_media.sql
+```
 
-Then enable **Anonymous Sign-Ins** in Supabase Authentication.
+The final two migrations add private media buckets, project-image records, evidence storage keys, storage policies, and supporting indexes.
 
-The final cleanup migration moves the membership helper out of the exposed `public` API schema, keeps service-only timeline writes restricted, makes trust-table Data API grants explicit, and adds covering indexes for foreign keys used by authorization and audit queries. The image migrations add private Supabase Storage buckets and the `project_images` table, plus a `storage_key` column on `evidence` for optional file uploads.
-
-## Verification
+## Verify changes
 
 ```bash
 npm run typecheck
@@ -84,7 +91,7 @@ npm run build
 ## Team
 
 | Team member | Role |
-|---|---|
+| --- | --- |
 | Syed Saad | Technical Lead and Project Strategy |
 | Areeba Muhammad | Product and Operations Lead |
 | Mustafa Ahmed | Presentation and Pitch Lead |
@@ -92,4 +99,4 @@ npm run build
 
 ## License
 
-MIT. See `LICENSE`.
+Released under the [MIT License](LICENSE).
