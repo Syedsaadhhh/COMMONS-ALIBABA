@@ -24,7 +24,7 @@ create policy evidence_media_insert
   to authenticated
   with check (
     bucket_id = 'evidence-media'
-    and auth.uid() in (
+    and (select auth.uid()) in (
       select pm.user_id
       from public.project_members pm
       where pm.project_id::text = (storage.foldername(name))[1]
@@ -49,6 +49,6 @@ create policy evidence_media_select
     and exists (
       select 1 from public.project_members pm
       where pm.project_id::text = (storage.foldername(name))[1]
-        and pm.user_id = auth.uid()
+        and pm.user_id = (select auth.uid())
     )
   );

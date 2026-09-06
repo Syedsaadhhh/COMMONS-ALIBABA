@@ -17,6 +17,8 @@ create table if not exists public.project_images (
 
 create index if not exists idx_project_images_project_id
   on public.project_images (project_id);
+create index if not exists idx_project_images_uploaded_by
+  on public.project_images (uploaded_by);
 
 alter table public.project_images enable row level security;
 
@@ -28,7 +30,7 @@ create policy project_images_select_members
     exists (
       select 1 from public.project_members pm
       where pm.project_id = project_images.project_id
-        and pm.user_id = auth.uid()
+        and pm.user_id = (select auth.uid())
     )
   );
 
@@ -37,11 +39,11 @@ create policy project_images_insert_owner
   on public.project_images for insert
   to authenticated
   with check (
-    uploaded_by = auth.uid()
+    uploaded_by = (select auth.uid())
     and exists (
       select 1 from public.projects p
       where p.id = project_images.project_id
-        and p.created_by = auth.uid()
+        and p.created_by = (select auth.uid())
     )
   );
 
@@ -67,7 +69,7 @@ create policy project_media_insert
     bucket_id = 'project-media'
     and (storage.foldername(name))[1] = (select created_by::text from public.projects where id::text = (storage.foldername(name))[1])
     and (storage.foldername(name))[2] = (select auth.uid()::text)
-    and auth.uid() = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
+    and (select auth.uid()) = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
   );
 
 drop policy if exists project_media_select on storage.objects;
@@ -79,7 +81,7 @@ create policy project_media_select
     and exists (
       select 1 from public.project_members pm
       where pm.project_id::text = (storage.foldername(name))[1]
-        and pm.user_id = auth.uid()
+        and pm.user_id = (select auth.uid())
     )
   );
 
@@ -91,5 +93,5 @@ create policy project_media_delete_owner
     bucket_id = 'project-media'
     and (storage.foldername(name))[1] = (select created_by::text from public.projects where id::text = (storage.foldername(name))[1])
     and (storage.foldername(name))[2] = (select auth.uid()::text)
-    and auth.uid() = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
+    and (select auth.uid()) = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
   );
