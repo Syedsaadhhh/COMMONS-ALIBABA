@@ -5,9 +5,18 @@ alter table public.evidence
   add column if not exists storage_key text;
 
 -- Private storage bucket for evidence media.
-insert into storage.buckets (id, name, public)
-values ('evidence-media', 'evidence-media', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'evidence-media',
+  'evidence-media',
+  false,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists evidence_media_insert on storage.objects;
 create policy evidence_media_insert
@@ -20,6 +29,15 @@ create policy evidence_media_insert
       from public.project_members pm
       where pm.project_id::text = (storage.foldername(name))[1]
     )
+  );
+
+drop policy if exists evidence_media_delete_uploader on storage.objects;
+create policy evidence_media_delete_uploader
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'evidence-media'
+    and owner_id = (select auth.uid()::text)
   );
 
 drop policy if exists evidence_media_select on storage.objects;

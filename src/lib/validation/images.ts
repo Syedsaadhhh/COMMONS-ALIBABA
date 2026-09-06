@@ -11,7 +11,9 @@
  */
 
 export const MAX_IMAGES = 3;
-export const MAX_FILE_BYTES = 1_048_576; // 1 MiB
+export const MAX_SOURCE_FILE_BYTES = 5_242_880; // 5 MiB selected from a device
+export const MAX_FILE_BYTES = 1_048_576; // 1 MiB after compression for the Qwen request
+export const MAX_EVIDENCE_FILE_BYTES = 5_242_880; // 5 MiB stored directly as evidence
 export const MAX_TOTAL_PAYLOAD_BYTES = 2_800_000; // ~2.8 MiB across all images
 export const ACCEPTED_MIME_TYPES = [
   "image/jpeg",

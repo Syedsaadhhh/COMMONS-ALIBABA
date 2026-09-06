@@ -5,6 +5,7 @@ import {
   validateImageFile,
   compressImageForUpload,
   MAX_IMAGES,
+  MAX_SOURCE_FILE_BYTES,
   ACCEPTED_MIME_TYPES,
   ACCEPTED_EXTENSIONS,
   type ValidatedImage,
@@ -43,6 +44,10 @@ export function ImageUploader({ images, onChange, error }: ImageUploaderProps) {
       let runningBytes = images.reduce((sum, img) => sum + img.dataUrl.length, 0);
 
       for (const file of toProcess) {
+        if (file.size > MAX_SOURCE_FILE_BYTES) {
+          setProcessingError(`Choose photos up to ${Math.round(MAX_SOURCE_FILE_BYTES / 1024 / 1024)} MB each.`);
+          break;
+        }
         const compressed = await compressImageForUpload(file);
         const result = await validateImageFile(compressed, runningBytes);
 
@@ -99,7 +104,7 @@ export function ImageUploader({ images, onChange, error }: ImageUploaderProps) {
               ? "Processing…"
               : `Add photo (${images.length}/${MAX_IMAGES})`}
           </span>
-          <small>Camera or gallery · max 1 MB each</small>
+          <small>Camera or gallery · up to 5 MB each, optimized before upload</small>
         </div>
       )}
 
@@ -107,7 +112,7 @@ export function ImageUploader({ images, onChange, error }: ImageUploaderProps) {
         ref={inputRef}
         type="file"
         accept={accept}
-        multiple={images.length < MAX_IMAGES - 1}
+        multiple
         capture="environment"
         className="sr-only"
         onChange={(event) => {

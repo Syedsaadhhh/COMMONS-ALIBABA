@@ -31,7 +31,7 @@ export async function uploadProjectImageToStorage(params: {
     .from(PROJECT_BUCKET)
     .upload(path, blob, {
       contentType: params.mimeType,
-      upsert: true,
+      upsert: false,
     });
 
   if (error) {
@@ -39,6 +39,16 @@ export async function uploadProjectImageToStorage(params: {
   }
 
   return path;
+}
+
+export async function removeProjectImagesFromStorage(storagePaths: string[]): Promise<void> {
+  if (storagePaths.length === 0) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.storage.from(PROJECT_BUCKET).remove(storagePaths);
+  if (error) {
+    throw new Error(error.message || "Uploaded project images could not be cleaned up.");
+  }
 }
 
 export async function getProjectImageSignedUrl(storagePath: string): Promise<string> {
@@ -75,7 +85,7 @@ export async function uploadEvidenceFileToStorage(params: {
     .from(EVIDENCE_BUCKET)
     .upload(path, file, {
       contentType: file.type || "application/octet-stream",
-      upsert: true,
+      upsert: false,
     });
 
   if (error) {
@@ -83,6 +93,14 @@ export async function uploadEvidenceFileToStorage(params: {
   }
 
   return { storagePath: path, fileHash };
+}
+
+export async function removeEvidenceFileFromStorage(storagePath: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.storage.from(EVIDENCE_BUCKET).remove([storagePath]);
+  if (error) {
+    throw new Error(error.message || "Uploaded evidence file could not be cleaned up.");
+  }
 }
 
 export async function getEvidenceSignedUrl(storageKey: string): Promise<string> {

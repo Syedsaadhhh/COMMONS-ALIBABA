@@ -46,9 +46,18 @@ create policy project_images_insert_owner
   );
 
 -- Private storage bucket for project media.
-insert into storage.buckets (id, name, public)
-values ('project-media', 'project-media', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'project-media',
+  'project-media',
+  false,
+  1048576,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists project_media_insert on storage.objects;
 create policy project_media_insert
@@ -57,6 +66,7 @@ create policy project_media_insert
   with check (
     bucket_id = 'project-media'
     and (storage.foldername(name))[1] = (select created_by::text from public.projects where id::text = (storage.foldername(name))[1])
+    and (storage.foldername(name))[2] = (select auth.uid()::text)
     and auth.uid() = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
   );
 
@@ -71,4 +81,15 @@ create policy project_media_select
       where pm.project_id::text = (storage.foldername(name))[1]
         and pm.user_id = auth.uid()
     )
+  );
+
+drop policy if exists project_media_delete_owner on storage.objects;
+create policy project_media_delete_owner
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'project-media'
+    and (storage.foldername(name))[1] = (select created_by::text from public.projects where id::text = (storage.foldername(name))[1])
+    and (storage.foldername(name))[2] = (select auth.uid()::text)
+    and auth.uid() = (select created_by from public.projects where id::text = (storage.foldername(name))[1])
   );

@@ -16,7 +16,14 @@ import type {
   TaskRecord,
 } from "@/lib/projects/types";
 import type { ProblemSubmission } from "@/lib/validation/problem";
-import { uploadProjectImageToStorage, getProjectImageSignedUrl, uploadEvidenceFileToStorage, getEvidenceSignedUrl } from "@/lib/projects/storage";
+import {
+  getEvidenceSignedUrl,
+  getProjectImageSignedUrl,
+  removeEvidenceFileFromStorage,
+  removeProjectImagesFromStorage,
+  uploadEvidenceFileToStorage,
+  uploadProjectImageToStorage,
+} from "@/lib/projects/storage";
 import type { ImagePayload } from "@/lib/validation/problem";
 
 async function ensureUser() {
@@ -40,6 +47,10 @@ function errorMessage(error: { message?: string } | null, fallback: string): str
 }
 
 export async function createProjectFromDraft(input: ProjectDraftInput): Promise<ProjectRecord> {
+  if ((input.images?.length ?? 0) > 3) {
+    throw new Error("A project can include at most 3 supporting images.");
+  }
+
   const { supabase, user } = await ensureUser();
 
   const { data: project, error: projectError } = await supabase
@@ -125,6 +136,7 @@ export async function createProjectFromDraft(input: ProjectDraftInput): Promise<
   }
 
   if (input.images && input.images.length > 0) {
+    const uploadedPaths: string[] = [];
     try {
       for (let i = 0; i < input.images.length; i++) {
         const image = input.images[i];
@@ -136,8 +148,9 @@ export async function createProjectFromDraft(input: ProjectDraftInput): Promise<
           mimeType: image.mimeType,
           ordinal: i + 1,
         });
+        uploadedPaths.push(storagePath);
 
-        await supabase.from("project_images").insert({
+        const { error: projectImageError } = await supabase.from("project_images").insert({
           project_id: project.id,
           storage_path: storagePath,
           mime_type: image.mimeType,
@@ -146,11 +159,21 @@ export async function createProjectFromDraft(input: ProjectDraftInput): Promise<
           ordinal: i + 1,
           uploaded_by: user.id,
         });
+        if (projectImageError) {
+          throw new Error(errorMessage(projectImageError, "The project image record could not be saved."));
+        }
       }
     } catch (uploadError) {
-      console.warn(
-        "Project images could not be uploaded to storage. The project was created; images can be retried.",
-        uploadError,
+      try {
+        await removeProjectImagesFromStorage(uploadedPaths);
+      } catch {
+        // The project rollback below ensures there is no visible incomplete record.
+      }
+      await rollback();
+      throw new Error(
+        uploadError instanceof Error
+          ? `The project was not created because its images could not be saved: ${uploadError.message}`
+          : "The project was not created because its images could not be saved.",
       );
     }
   }
@@ -357,6 +380,13 @@ export async function addEvidenceCheckIn(input: {
     .select()
     .single();
   if (error || !data) {
+    if (storageKey) {
+      try {
+        await removeEvidenceFileFromStorage(storageKey);
+      } catch {
+        // Preserve the original database error for the user.
+      }
+    }
     throw new Error(errorMessage(error, "The evidence check-in could not be saved."));
   }
   return data as EvidenceRecord;
