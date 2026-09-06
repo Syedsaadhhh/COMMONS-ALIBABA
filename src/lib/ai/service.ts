@@ -255,7 +255,13 @@ export async function generatePlan(
   const model = useVisionModel ? env.visionModel! : env.model;
   const timeoutMs = useVisionModel ? VISION_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
 
-  const content = buildUserMessage(prompt, submission.images);
+  // Only vision-capable Qwen models accept image_url content. If no vision
+  // model is configured, keep the request usable by planning from the text
+  // report and disclose `visionUsed: false` in the response.
+  const content = buildUserMessage(
+    prompt,
+    useVisionModel ? submission.images : undefined,
+  );
 
   const messages: QwenMessage[] = [
     {
