@@ -1,4 +1,4 @@
-import { generatePlan } from "@/lib/ai/service";
+import { generatePlan, type GeneratePlanResult } from "@/lib/ai/service";
 import { AIError } from "@/lib/ai/errors";
 import { createLogger } from "@/lib/logging/logger";
 import type { AIPlan } from "@/lib/ai/schema";
@@ -7,11 +7,11 @@ import type { ProblemSubmission } from "@/lib/validation/problem";
 const logger = createLogger({ service: "ai/fallback" });
 
 /**
- * COMMONS — AI fallback wrapper (Weakness 6).
+ * COMMONS — AI fallback wrapper (Weakness 6) with multimodal vision support.
  *
- * Wraps the existing Qwen/DashScope call in `generatePlan` with a
- * try/catch so that a demo flow survives vendor outages without
- * swallowing real bugs.
+ * Wraps the Qwen/DashScope call in `generatePlan` with a try/catch so that
+ * a demo flow survives vendor outages without swallowing real bugs. Vision
+ * calls are retried as text-only before falling back to the template plan.
  *
  * Fallback triggers (returns a template plan):
  *   - AIError with code `ai_unavailable` (5xx / timeout / rate-limit).
@@ -22,13 +22,10 @@ const logger = createLogger({ service: "ai/fallback" });
  *   - AIError `ai_rejected_request` (4xx from the upstream vendor).
  *   - AIError `ai_invalid_response` (response failed schema parse).
  *
- * The original `generatePlan` in `src/lib/ai/service.ts` is untouched.
- * API routes opt into the fallback by importing
- * `generatePlanWithFallback` from this module instead of `generatePlan`.
- *
- * The returned object always carries a `source` discriminator so the
- * UI can disclose whether the plan was produced by Qwen or by the
- * fallback generator (transparency matters for civic trust).
+ * The returned object always carries a `source` discriminator so the UI
+ * can disclose whether the plan was produced by Qwen or by the fallback
+ * generator. `visionUsed` reports whether images reached the model, and
+ * `visionFallbackReason` discloses any silent downgrade.
  */
 
 export type PlanSource = "qwen" | "fallback_template";
@@ -37,6 +34,8 @@ export interface PlanWithSource {
   plan: AIPlan;
   source: PlanSource;
   fallbackReason?: string;
+  visionUsed: boolean;
+  visionFallbackReason?: string;
 }
 
 function fallbackPlan(submission: ProblemSubmission): AIPlan {
@@ -114,33 +113,32 @@ function fallbackPlan(submission: ProblemSubmission): AIPlan {
   };
 }
 
-/**
- * Call this from API routes instead `generatePlan` directly.
- *
- * On upstream failure the function returns a fallback plan and exposes
- * the reason in `fallbackReason` so the route can surface a banner to
- * the user.
- */
+function isOutageError(error: unknown): boolean {
+  const isNetworkOrAbort =
+    error instanceof Error &&
+    (error.name === "AbortError" ||
+      /timeout|fetch|network|ECONNR/i.test(error.message));
+  const isOutageAiError =
+    error instanceof AIError &&
+    (error.code === "ai_unavailable" || error.code === "configuration_error");
+  return isNetworkOrAbort || isOutageAiError;
+}
+
+function stripImagesForTextRetry(
+  submission: ProblemSubmission,
+): ProblemSubmission {
+  const { images: _images, ...rest } = submission;
+  return rest;
+}
+
 export async function generatePlanWithFallback(
   submission: ProblemSubmission,
 ): Promise<PlanWithSource> {
   try {
-    const plan = await generatePlan(submission);
-    return { plan, source: "qwen" };
+    const { plan, visionUsed } = await generatePlan(submission);
+    return { plan, source: "qwen", visionUsed };
   } catch (error) {
-    const isNetworkOrAbort =
-      error instanceof Error &&
-      (error.name === "AbortError" ||
-        /timeout|fetch|network|ECONNR/i.test(error.message));
-
-    const isOutageAiError =
-      error instanceof AIError &&
-      (error.code === "ai_unavailable" || error.code === "configuration_error");
-
-    if (!isNetworkOrAbort && !isOutageAiError) {
-      // Programmer errors, rejected requests (4xx), and invalid AI
-      // responses (schema mismatch) are NOT outage scenarios. Let the
-      // caller handle them with the normal error path.
+    if (!isOutageError(error)) {
       throw error;
     }
 
@@ -151,14 +149,48 @@ export async function generatePlanWithFallback(
           ? `${error.name}: ${error.message}`
           : "Unknown AI failure";
 
-    logger.warn("Qwen unavailable; serving template fallback plan.", {
-      reason,
-    });
+    const hadImages = (submission.images?.length ?? 0) > 0;
+    if (hadImages) {
+      logger.warn("Qwen vision call failed; retrying as text-only.", { reason });
+      try {
+        const { plan } = await generatePlan(stripImagesForTextRetry(submission));
+        return {
+          plan,
+          source: "qwen",
+          visionUsed: false,
+          visionFallbackReason:
+            "Images could not be analysed — the brief was structured from text only.",
+        };
+      } catch (retryError) {
+        if (!isOutageError(retryError)) {
+          throw retryError;
+        }
+        const retryReason =
+          retryError instanceof AIError
+            ? `${retryError.code}: ${retryError.message}`
+            : retryError instanceof Error
+              ? `${retryError.name}: ${retryError.message}`
+              : "Unknown AI failure";
+        logger.warn("Qwen text-only retry also unavailable; serving template.", {
+          reason: retryReason,
+        });
+        return {
+          plan: fallbackPlan(submission),
+          source: "fallback_template",
+          fallbackReason: retryReason,
+          visionUsed: false,
+          visionFallbackReason:
+            "Images could not be analysed — the brief was built from text only.",
+        };
+      }
+    }
 
+    logger.warn("Qwen unavailable; serving template fallback plan.", { reason });
     return {
       plan: fallbackPlan(submission),
       source: "fallback_template",
       fallbackReason: reason,
+      visionUsed: false,
     };
   }
 }

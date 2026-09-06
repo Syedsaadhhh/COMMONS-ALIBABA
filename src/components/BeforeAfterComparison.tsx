@@ -13,6 +13,15 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function isImageEvidence(evidence: EvidenceRecord): boolean {
+  if (evidence.storage_key && evidence.displayUrl) return true;
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(evidence.file_url);
+}
+
+function imageSrc(evidence: EvidenceRecord): string {
+  return evidence.displayUrl || evidence.file_url;
+}
+
 function EvidenceCard({
   phase,
   evidence,
@@ -23,9 +32,9 @@ function EvidenceCard({
   return (
     <figure className="comparison-card">
       <div className="comparison-card__media">
-        {evidence.file_url.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? (
+        {isImageEvidence(evidence) ? (
           <img
-            src={evidence.file_url}
+            src={imageSrc(evidence)}
             alt={evidence.title}
             loading="lazy"
           />
@@ -61,7 +70,7 @@ function EvidenceCard({
         </dl>
         <a
           className="plain-link"
-          href={evidence.file_url}
+          href={evidence.displayUrl || evidence.file_url}
           target="_blank"
           rel="noopener noreferrer"
         >

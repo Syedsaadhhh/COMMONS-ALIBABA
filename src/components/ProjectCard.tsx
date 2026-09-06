@@ -186,6 +186,7 @@ export interface ProjectCardProps {
   location: string;
   status: "draft" | "active" | "completed" | "archived";
   imageUrl?: string | null;
+  projectImages?: { displayUrl: string }[];
   objective?: string | null;
   tasks?: { title: string; ownerRole?: string | null; status?: string }[];
   kpis?: { name: string; unit: string; baseline?: number | null }[];
@@ -213,6 +214,7 @@ export function ProjectCard({
   location,
   status,
   imageUrl,
+  projectImages,
   objective,
   tasks = [],
   kpis = [],
@@ -236,16 +238,25 @@ export function ProjectCard({
       }
     : {};
 
+  const displayImages = projectImages?.filter((img) => img.displayUrl) ?? [];
+  const fallbackImage = imageUrl && displayImages.length === 0 ? [imageUrl] : [];
+  const thumbnails = displayImages.length > 0
+    ? displayImages.map((img) => img.displayUrl)
+    : fallbackImage;
+
   return (
     <Card {...wrapperProps}>
       <div className="flex flex-col gap-4 sm:flex-row">
-        {imageUrl && (
-          <div className="w-full shrink-0 overflow-hidden rounded-lg sm:w-40">
-            <img
-              src={imageUrl}
-              alt=""
-              className="h-28 w-full object-cover sm:h-full"
-            />
+        {thumbnails.length > 0 && (
+          <div className="flex w-full shrink-0 gap-1.5 overflow-hidden sm:w-40 sm:flex-col">
+            {thumbnails.map((src, index) => (
+              <img
+                key={index}
+                src={src}
+                alt=""
+                className="h-24 w-full flex-1 object-cover sm:h-auto"
+              />
+            ))}
           </div>
         )}
         <div className="flex-1">

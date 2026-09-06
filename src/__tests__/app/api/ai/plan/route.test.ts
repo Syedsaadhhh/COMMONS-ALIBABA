@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/ai/plan/route";
 import { AIError } from "@/lib/ai/errors";
 
-vi.mock("@/lib/ai/service", () => ({
-  generatePlan: vi.fn(),
+vi.mock("@/lib/ai/service.fallback", () => ({
+  generatePlanWithFallback: vi.fn(),
 }));
 
-const { generatePlan } = await import("@/lib/ai/service");
+const { generatePlanWithFallback } = await import("@/lib/ai/service.fallback");
 
 const validPlan = {
   problemSummary: "Flooding blocks access beside a school.",
@@ -58,13 +58,18 @@ describe("/api/ai/plan", () => {
   }
 
   it("returns 200 with a draft plan on success", async () => {
-    vi.mocked(generatePlan).mockResolvedValueOnce(validPlan);
+    vi.mocked(generatePlanWithFallback).mockResolvedValueOnce({
+      plan: validPlan,
+      source: "qwen",
+      visionUsed: false,
+    });
 
     const response = await makeRequest(validSubmission);
     expect(response.status).toBe(200);
     const json = await response.json();
     expect(json.status).toBe("draft");
     expect(json.plan).toEqual(validPlan);
+    expect(json.source).toBe("qwen");
   });
 
   it("returns 422 for invalid submission", async () => {
@@ -85,9 +90,12 @@ describe("/api/ai/plan", () => {
   });
 
   it("returns a fallback plan (200) on configuration_error so the demo survives a missing API key", async () => {
-    vi.mocked(generatePlan).mockRejectedValueOnce(
-      new AIError("configuration_error", "Missing key"),
-    );
+    vi.mocked(generatePlanWithFallback).mockResolvedValueOnce({
+      plan: validPlan,
+      source: "fallback_template",
+      fallbackReason: "configuration_error: Missing key",
+      visionUsed: false,
+    });
 
     const response = await makeRequest(validSubmission);
     expect(response.status).toBe(200);
@@ -95,16 +103,15 @@ describe("/api/ai/plan", () => {
     expect(json.status).toBe("draft");
     expect(json.source).toBe("fallback_template");
     expect(json.fallbackReason).toContain("configuration_error");
-    expect(json.plan.problemSummary).toContain(validSubmission.title);
-    expect(json.plan.problemSummary).toContain(validSubmission.location);
-    expect(json.plan.tasks.length).toBeGreaterThan(0);
-    expect(json.plan.kpis.length).toBeGreaterThan(0);
   });
 
   it("returns a fallback plan (200) on ai_unavailable so the demo survives Qwen downtime", async () => {
-    vi.mocked(generatePlan).mockRejectedValueOnce(
-      new AIError("ai_unavailable", "Qwen timed out."),
-    );
+    vi.mocked(generatePlanWithFallback).mockResolvedValueOnce({
+      plan: validPlan,
+      source: "fallback_template",
+      fallbackReason: "ai_unavailable: Qwen timed out.",
+      visionUsed: false,
+    });
 
     const response = await makeRequest(validSubmission);
     expect(response.status).toBe(200);
@@ -112,11 +119,10 @@ describe("/api/ai/plan", () => {
     expect(json.status).toBe("draft");
     expect(json.source).toBe("fallback_template");
     expect(json.fallbackReason).toContain("ai_unavailable");
-    expect(json.plan.problemSummary).toContain(validSubmission.title);
   });
 
   it("returns 502 on ai_rejected_request", async () => {
-    vi.mocked(generatePlan).mockRejectedValueOnce(
+    vi.mocked(generatePlanWithFallback).mockRejectedValueOnce(
       new AIError("ai_rejected_request", "Bad request."),
     );
 
@@ -128,7 +134,7 @@ describe("/api/ai/plan", () => {
   });
 
   it("returns 502 on ai_invalid_response", async () => {
-    vi.mocked(generatePlan).mockRejectedValueOnce(
+    vi.mocked(generatePlanWithFallback).mockRejectedValueOnce(
       new AIError("ai_invalid_response", "Schema failed."),
     );
 
@@ -140,7 +146,7 @@ describe("/api/ai/plan", () => {
   });
 
   it("does not expose the upstream error message", async () => {
-    vi.mocked(generatePlan).mockRejectedValueOnce(
+    vi.mocked(generatePlanWithFallback).mockRejectedValueOnce(
       new AIError("ai_invalid_response", "Upstream secret detail"),
     );
 

@@ -9,11 +9,22 @@ import type {
   MeasurementRecord,
   ProjectBundle,
   ProjectDraftInput,
+  ProjectImageDisplay,
+  ProjectImageRecord,
   ProjectRecord,
   TaskEvidenceClaimRecord,
   TaskRecord,
 } from "@/lib/projects/types";
 import type { ProblemSubmission } from "@/lib/validation/problem";
+import {
+  getEvidenceSignedUrl,
+  getProjectImageSignedUrl,
+  removeEvidenceFileFromStorage,
+  removeProjectImagesFromStorage,
+  uploadEvidenceFileToStorage,
+  uploadProjectImageToStorage,
+} from "@/lib/projects/storage";
+import type { ImagePayload } from "@/lib/validation/problem";
 
 async function ensureUser() {
   const supabase = createClient();
@@ -36,6 +47,10 @@ function errorMessage(error: { message?: string } | null, fallback: string): str
 }
 
 export async function createProjectFromDraft(input: ProjectDraftInput): Promise<ProjectRecord> {
+  if ((input.images?.length ?? 0) > 3) {
+    throw new Error("A project can include at most 3 supporting images.");
+  }
+
   const { supabase, user } = await ensureUser();
 
   const { data: project, error: projectError } = await supabase
@@ -120,6 +135,49 @@ export async function createProjectFromDraft(input: ProjectDraftInput): Promise<
     throw new Error(errorMessage(auditError, "The project confirmation could not be recorded."));
   }
 
+  if (input.images && input.images.length > 0) {
+    const uploadedPaths: string[] = [];
+    try {
+      for (let i = 0; i < input.images.length; i++) {
+        const image = input.images[i];
+        const storagePath = await uploadProjectImageToStorage({
+          projectId: project.id,
+          userId: user.id,
+          dataUrl: image.dataUrl,
+          sha256: image.sha256,
+          mimeType: image.mimeType,
+          ordinal: i + 1,
+        });
+        uploadedPaths.push(storagePath);
+
+        const { error: projectImageError } = await supabase.from("project_images").insert({
+          project_id: project.id,
+          storage_path: storagePath,
+          mime_type: image.mimeType,
+          byte_size: image.byteSize,
+          file_hash: image.sha256,
+          ordinal: i + 1,
+          uploaded_by: user.id,
+        });
+        if (projectImageError) {
+          throw new Error(errorMessage(projectImageError, "The project image record could not be saved."));
+        }
+      }
+    } catch (uploadError) {
+      try {
+        await removeProjectImagesFromStorage(uploadedPaths);
+      } catch {
+        // The project rollback below ensures there is no visible incomplete record.
+      }
+      await rollback();
+      throw new Error(
+        uploadError instanceof Error
+          ? `The project was not created because its images could not be saved: ${uploadError.message}`
+          : "The project was not created because its images could not be saved.",
+      );
+    }
+  }
+
   return project as ProjectRecord;
 }
 
@@ -151,13 +209,14 @@ export async function getProjectBundle(projectId: string): Promise<ProjectBundle
   if (projectError) throw new Error(errorMessage(projectError, "The project could not be loaded."));
   if (!project) return null;
 
-  const [tasks, kpis, evidence, corroboration, verificationReviews, statusHistory] = await Promise.all([
+  const [tasks, kpis, evidence, corroboration, verificationReviews, statusHistory, projectImagesResult] = await Promise.all([
     supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at"),
     supabase.from("kpis").select("*").eq("project_id", projectId),
     supabase.from("evidence").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
     supabase.from("project_corroboration").select("*").eq("project_id", projectId).order("created_at"),
     supabase.from("project_verification_review").select("*").eq("project_id", projectId).order("reviewed_at"),
     supabase.from("project_status_history").select("*").eq("project_id", projectId).order("created_at"),
+    supabase.from("project_images").select("*").eq("project_id", projectId).order("ordinal"),
   ]);
 
   if (tasks.error) throw new Error(errorMessage(tasks.error, "Tasks could not be loaded."));
@@ -166,6 +225,7 @@ export async function getProjectBundle(projectId: string): Promise<ProjectBundle
   if (corroboration.error) throw new Error(errorMessage(corroboration.error, "Corroboration reports could not be loaded."));
   if (verificationReviews.error) throw new Error(errorMessage(verificationReviews.error, "Verification reviews could not be loaded."));
   if (statusHistory.error) throw new Error(errorMessage(statusHistory.error, "Status history could not be loaded."));
+  if (projectImagesResult.error) throw new Error(errorMessage(projectImagesResult.error, "Project images could not be loaded."));
 
   const taskIds = (tasks.data ?? []).map((task) => task.id);
   const kpiIds = (kpis.data ?? []).map((kpi) => kpi.id);
@@ -190,16 +250,46 @@ export async function getProjectBundle(projectId: string): Promise<ProjectBundle
     throw new Error(errorMessage(measurements.error, "Measurement history could not be loaded."));
   }
 
+  const rawImages = (projectImagesResult.data ?? []) as ProjectImageRecord[];
+  const projectImages: ProjectImageDisplay[] = await Promise.all(
+    rawImages.map(async (img) => {
+      try {
+        const displayUrl = await getProjectImageSignedUrl(img.storage_path);
+        return { ...img, displayUrl };
+      } catch {
+        return { ...img, displayUrl: "" };
+      }
+    }),
+  );
+
+  const evidenceRecords = ((evidence.data ?? []) as EvidenceRecord[]).map((e) => {
+    if (e.storage_key) {
+      return { ...e, displayUrl: null as string | null };
+    }
+    return e;
+  });
+
+  for (const record of evidenceRecords) {
+    if (record.storage_key) {
+      try {
+        record.displayUrl = await getEvidenceSignedUrl(record.storage_key);
+      } catch {
+        record.displayUrl = null;
+      }
+    }
+  }
+
   return {
     project: project as ProjectRecord,
     tasks: (tasks.data ?? []) as TaskRecord[],
     kpis: (kpis.data ?? []) as KpiRecord[],
     measurements: (measurements.data ?? []) as MeasurementRecord[],
-    evidence: (evidence.data ?? []) as EvidenceRecord[],
+    evidence: evidenceRecords,
     taskEvidenceClaims: (taskEvidenceClaims.data ?? []) as TaskEvidenceClaimRecord[],
     corroboration: (corroboration.data ?? []) as ProjectBundle["corroboration"],
     verificationReviews: (verificationReviews.data ?? []) as ProjectBundle["verificationReviews"],
     statusHistory: (statusHistory.data ?? []) as ProjectBundle["statusHistory"],
+    projectImages,
   };
 }
 
@@ -245,20 +335,43 @@ export async function addEvidenceCheckIn(input: {
   projectId: string;
   title: string;
   description: string;
-  sourceUrl: string;
+  sourceUrl?: string;
+  file?: File;
   phase?: EvidencePhase;
   coordinates?: Coordinates | null;
 }): Promise<EvidenceRecord> {
   const { supabase, user } = await ensureUser();
-  const fileHash = await fingerprint(input.sourceUrl);
+
+  let fileUrl: string;
+  let fileHash: string;
+  let storageKey: string | null = null;
+
+  if (input.file) {
+    const tempId = crypto.randomUUID();
+    const { storagePath, fileHash: hash } = await uploadEvidenceFileToStorage({
+      projectId: input.projectId,
+      evidenceId: tempId,
+      file: input.file,
+    });
+    storageKey = storagePath;
+    fileHash = hash;
+    fileUrl = `storage://${storagePath}`;
+  } else if (input.sourceUrl) {
+    fileUrl = input.sourceUrl;
+    fileHash = await fingerprint(input.sourceUrl);
+  } else {
+    throw new Error("Either a source URL or a file must be provided.");
+  }
+
   const { data, error } = await supabase
     .from("evidence")
     .insert({
       project_id: input.projectId,
       title: input.title,
       description: input.description || null,
-      file_url: input.sourceUrl,
+      file_url: fileUrl,
       file_hash: fileHash,
+      storage_key: storageKey,
       phase: input.phase ?? "other",
       contributed_by: user.id,
       latitude: input.coordinates?.latitude ?? null,
@@ -267,6 +380,13 @@ export async function addEvidenceCheckIn(input: {
     .select()
     .single();
   if (error || !data) {
+    if (storageKey) {
+      try {
+        await removeEvidenceFileFromStorage(storageKey);
+      } catch {
+        // Preserve the original database error for the user.
+      }
+    }
     throw new Error(errorMessage(error, "The evidence check-in could not be saved."));
   }
   return data as EvidenceRecord;

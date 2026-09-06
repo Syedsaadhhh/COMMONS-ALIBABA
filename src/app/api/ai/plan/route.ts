@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
+import { MAX_TOTAL_PAYLOAD_BYTES } from "@/lib/validation/images";
 import { generatePlanWithFallback } from "@/lib/ai/service.fallback";
 import { AIError } from "@/lib/ai/errors";
 import { createLogger } from "@/lib/logging/logger";
@@ -10,6 +11,7 @@ import {
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
+const SERVER_PAYLOAD_LIMIT_BYTES = 4_000_000; // 4 MiB — keeps us under the Vercel body ceiling.
 
 function correlationId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -68,20 +70,48 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  log.info("Generating plan", { sourceIp: identifier });
+  const images = submission.data.images ?? [];
+  const totalImageBytes = images.reduce((sum, img) => sum + img.byteSize, 0);
+  if (totalImageBytes > MAX_TOTAL_PAYLOAD_BYTES) {
+    log.warn("Image payload exceeded client-side limit", { totalImageBytes });
+    return Response.json(
+      {
+        error: "The total image payload is too large. Remove an image or use smaller photos.",
+      },
+      { status: 413 },
+    );
+  }
+  if (totalImageBytes > SERVER_PAYLOAD_LIMIT_BYTES) {
+    log.warn("Image payload exceeded server limit", { totalImageBytes });
+    return Response.json(
+      {
+        error: "The image payload exceeds the server limit. Please use smaller photos.",
+      },
+      { status: 413 },
+    );
+  }
+
+  log.info("Generating plan", {
+    sourceIp: identifier,
+    imageCount: images.length,
+    totalImageBytes,
+  });
 
   try {
-    const { plan, source, fallbackReason } = await generatePlanWithFallback(submission.data);
+    const { plan, source, fallbackReason, visionUsed, visionFallbackReason } =
+      await generatePlanWithFallback(submission.data);
     if (fallbackReason) {
       log.warn("Served fallback plan", { source, fallbackReason });
     } else {
-      log.info("Plan generated", { source });
+      log.info("Plan generated", { source, visionUsed });
     }
     return Response.json({
       plan,
       status: "draft",
       source,
+      visionUsed,
       ...(fallbackReason ? { fallbackReason } : {}),
+      ...(visionFallbackReason ? { visionFallbackReason } : {}),
     });
   } catch (error) {
     if (error instanceof AIError) {

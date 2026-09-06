@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { generatePlan } from "@/lib/ai/service";
+import { generatePlan, buildUserMessage } from "@/lib/ai/service";
 import { AIError } from "@/lib/ai/errors";
+import type { ImagePayload } from "@/lib/validation/problem";
 
 const validPlanResponse = {
   problemSummary: "Flooding blocks access beside a school.",
@@ -33,11 +34,19 @@ const submission = {
   location: "Street beside City School, Sector 4",
 };
 
+const fakeImage: ImagePayload = {
+  dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+  mimeType: "image/jpeg",
+  byteSize: 1024,
+  sha256: "a".repeat(64),
+};
+
 describe("generatePlan", () => {
   beforeEach(() => {
     vi.stubEnv("DASHSCOPE_API_KEY", "test-key");
     vi.stubEnv("DASHSCOPE_BASE_URL", "");
     vi.stubEnv("DASHSCOPE_MODEL", "");
+    vi.stubEnv("DASHSCOPE_VISION_MODEL", "");
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -61,9 +70,10 @@ describe("generatePlan", () => {
       choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
     });
 
-    const plan = await generatePlan(submission);
-    expect(plan.problemSummary).toBe(validPlanResponse.problemSummary);
-    expect(plan.kpis[0].baseline).toBeNull();
+    const result = await generatePlan(submission);
+    expect(result.plan.problemSummary).toBe(validPlanResponse.problemSummary);
+    expect(result.plan.kpis[0].baseline).toBeNull();
+    expect(result.visionUsed).toBe(false);
 
     const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
       body: string;
@@ -98,8 +108,8 @@ describe("generatePlan", () => {
       choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
     });
 
-    const plan = await generatePlan(submission);
-    expect(plan.problemSummary).toBe(validPlanResponse.problemSummary);
+    const result = await generatePlan(submission);
+    expect(result.plan.problemSummary).toBe(validPlanResponse.problemSummary);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -116,8 +126,8 @@ describe("generatePlan", () => {
         text: async () => "",
       });
 
-    const plan = await generatePlan(submission);
-    expect(plan.problemSummary).toBe(validPlanResponse.problemSummary);
+    const result = await generatePlan(submission);
+    expect(result.plan.problemSummary).toBe(validPlanResponse.problemSummary);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -257,5 +267,109 @@ describe("generatePlan", () => {
     expect(error).toBeInstanceOf(AIError);
     expect(error.code).toBe("configuration_error");
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  describe("multimodal vision", () => {
+    const submissionWithImages = {
+      ...submission,
+      images: [fakeImage],
+    };
+
+    it("uses the vision model when images are present and DASHSCOPE_VISION_MODEL is set", async () => {
+      vi.stubEnv("DASHSCOPE_VISION_MODEL", "qwen-vl-plus");
+      mockFetchResponse({
+        choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
+      });
+
+      const result = await generatePlan(submissionWithImages);
+      expect(result.visionUsed).toBe(true);
+
+      const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
+        body: string;
+      };
+      const body = JSON.parse(requestOptions.body);
+      expect(body.model).toBe("qwen-vl-plus");
+    });
+
+    it("falls back to text model when DASHSCOPE_VISION_MODEL is not set", async () => {
+      mockFetchResponse({
+        choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
+      });
+
+      const result = await generatePlan(submissionWithImages);
+      expect(result.visionUsed).toBe(false);
+    });
+
+    it("sends multimodal content parts when images are present", async () => {
+      vi.stubEnv("DASHSCOPE_VISION_MODEL", "qwen-vl-plus");
+      mockFetchResponse({
+        choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
+      });
+
+      await generatePlan(submissionWithImages);
+
+      const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
+        body: string;
+      };
+      const body = JSON.parse(requestOptions.body);
+      const userMessage = body.messages.find((m: { role: string }) => m.role === "user");
+      expect(Array.isArray(userMessage.content)).toBe(true);
+      expect(userMessage.content[0]).toMatchObject({ type: "text" });
+      expect(userMessage.content[1]).toMatchObject({
+        type: "image_url",
+        image_url: { url: fakeImage.dataUrl },
+      });
+    });
+
+    it("sends plain text content when no images are present", async () => {
+      mockFetchResponse({
+        choices: [{ message: { content: JSON.stringify(validPlanResponse) } }],
+      });
+
+      await generatePlan(submission);
+
+      const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
+        body: string;
+      };
+      const body = JSON.parse(requestOptions.body);
+      const userMessage = body.messages.find((m: { role: string }) => m.role === "user");
+      expect(typeof userMessage.content).toBe("string");
+    });
+  });
+});
+
+describe("buildUserMessage", () => {
+  it("returns a plain string when no images are provided", () => {
+    const result = buildUserMessage("Describe the problem", undefined);
+    expect(result).toBe("Describe the problem");
+  });
+
+  it("returns a plain string when images array is empty", () => {
+    const result = buildUserMessage("Describe the problem", []);
+    expect(result).toBe("Describe the problem");
+  });
+
+  it("returns multimodal parts when images are provided", () => {
+    const result = buildUserMessage("Describe the problem", [fakeImage]);
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as Array<{ type: string }>;
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toEqual({ type: "text", text: "Describe the problem" });
+    expect(parts[1]).toEqual({
+      type: "image_url",
+      image_url: { url: fakeImage.dataUrl },
+    });
+  });
+
+  it("includes all images in the parts array", () => {
+    const images: ImagePayload[] = [
+      fakeImage,
+      { ...fakeImage, sha256: "b".repeat(64), dataUrl: "data:image/png;base64,iVBOR" },
+    ];
+    const result = buildUserMessage("Civic report", images);
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as Array<{ type: string }>;
+    expect(parts).toHaveLength(3);
+    expect(parts.filter((p) => p.type === "image_url")).toHaveLength(2);
   });
 });

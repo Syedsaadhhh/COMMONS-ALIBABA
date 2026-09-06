@@ -145,6 +145,7 @@ export function ProjectRegistry() {
                       location={project.location}
                       status={project.status}
                       imageUrl={project.image_url}
+                      projectImages={bundle.projectImages}
                       objective={project.objective}
                       tasks={tasks.map((task) => ({
                         title: task.title,

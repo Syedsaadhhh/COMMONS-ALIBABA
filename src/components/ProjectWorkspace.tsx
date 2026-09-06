@@ -28,6 +28,11 @@ import type {
   TaskEvidenceClaimRecord,
   TaskRecord,
 } from "@/lib/projects/types";
+import {
+  ACCEPTED_EXTENSIONS,
+  ACCEPTED_MIME_TYPES,
+  MAX_EVIDENCE_FILE_BYTES,
+} from "@/lib/validation/images";
 
 interface ProjectWorkspaceProps {
   projectId: string;
@@ -83,6 +88,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   const [evidenceDescription, setEvidenceDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [evidencePhase, setEvidencePhase] = useState<EvidencePhase>("other");
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidenceCoordinates, setEvidenceCoordinates] = useState<Coordinates | null>(null);
   const [claimSelections, setClaimSelections] = useState<
     Record<string, { evidenceId: string; claimKind: TaskEvidenceClaimRecord["claim_kind"] }>
@@ -210,8 +216,16 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
   async function submitEvidence(event: FormEvent) {
     event.preventDefault();
-    if (!evidenceTitle.trim() || !evidenceUrl.trim()) {
-      setError("Give the evidence a title and a source link.");
+    if (!evidenceTitle.trim() || (!evidenceUrl.trim() && !evidenceFile)) {
+      setError("Give the evidence a title and either a source link or an uploaded file.");
+      return;
+    }
+    if (evidenceFile && !ACCEPTED_MIME_TYPES.includes(evidenceFile.type as typeof ACCEPTED_MIME_TYPES[number])) {
+      setError("Uploaded evidence must be a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (evidenceFile && evidenceFile.size > MAX_EVIDENCE_FILE_BYTES) {
+      setError("Uploaded evidence must be 5 MB or smaller.");
       return;
     }
     setBusy("evidence");
@@ -221,13 +235,15 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         projectId,
         title: evidenceTitle.trim(),
         description: evidenceDescription.trim(),
-        sourceUrl: evidenceUrl.trim(),
+        sourceUrl: evidenceUrl.trim() || undefined,
+        file: evidenceFile || undefined,
         phase: evidencePhase,
         coordinates: evidenceCoordinates,
       });
       setEvidenceTitle("");
       setEvidenceDescription("");
       setEvidenceUrl("");
+      setEvidenceFile(null);
       setEvidencePhase("other");
       setEvidenceCoordinates(null);
       await load();
@@ -312,7 +328,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
   if (!bundle) return null;
 
-  const { project, tasks, kpis, evidence } = bundle;
+  const { project, tasks, kpis, evidence, projectImages } = bundle;
   const hasMap = project.latitude !== null && project.longitude !== null;
 
   return (
@@ -338,6 +354,26 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
           <article><span>Area</span><p>{project.location}</p></article>
           <article><span>Evidence</span><p>{evidence.length} submitted reference{evidence.length === 1 ? "" : "s"}</p></article>
         </section>
+
+        {projectImages.some((image) => image.displayUrl) && (
+          <section className="project-photo-strip" aria-label="Submitted project photos">
+            <div className="project-photo-strip__heading">
+              <div>
+                <p className="form-kicker">Submitted with the brief</p>
+                <h2>Project photos</h2>
+              </div>
+              <span>{projectImages.length} photo{projectImages.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="project-photo-strip__grid">
+              {projectImages.map((image, index) => image.displayUrl ? (
+                <a key={image.id} href={image.displayUrl} target="_blank" rel="noreferrer">
+                  <img src={image.displayUrl} alt={`${project.title} — submitted photo ${index + 1}`} loading="lazy" />
+                </a>
+              ) : null)}
+            </div>
+            <p>These photos provide context for the brief. They are not verified evidence.</p>
+          </section>
+        )}
 
         <BeforeAfterComparison evidence={evidence} />
 
@@ -417,12 +453,13 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             <form className="evidence-form" onSubmit={submitEvidence}>
               <label>Evidence title<input className="form-control" value={evidenceTitle} onChange={(event) => setEvidenceTitle(event.target.value)} placeholder="Morning traffic observation" required /></label>
               <label>Evidence phase<select className="form-control" value={evidencePhase} onChange={(event) => setEvidencePhase(event.target.value as EvidencePhase)}><option value="before">Before work</option><option value="after">After work</option><option value="other">Other</option></select></label>
-              <label>Source link<input className="form-control" type="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="https://…" required /></label>
+              <label>Source link (optional if uploading a file)<input className="form-control" type="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="https://…" /></label>
+              <label>Upload image (optional)<input className="form-control" type="file" accept={ACCEPTED_EXTENSIONS.join(",")} onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} /></label>
               <label className="evidence-form__full">Context (optional)<textarea className="form-control" value={evidenceDescription} onChange={(event) => setEvidenceDescription(event.target.value)} placeholder="What does this source show, and when was it observed?" rows={3} /></label>
               <div className="evidence-form__actions"><Button type="button" variant="outline" size="sm" disabled={busy === "evidence-location"} onClick={() => void captureEvidenceLocation()}>{evidenceCoordinates ? "Evidence location captured" : busy === "evidence-location" ? "Capturing…" : "Add my evidence location"}</Button><Button type="submit" disabled={busy === "evidence"}>{busy === "evidence" ? "Saving…" : "Submit evidence"}</Button></div>
-              <p className="input-note evidence-form__full">COMMONS stores the source URL and a fingerprint of that URL for reference. It does not claim to verify the source content.</p>
+              <p className="input-note evidence-form__full">COMMONS stores a source URL or one image file up to 5 MB with a fingerprint for reference. It does not claim to verify the source content.</p>
             </form>
-            <div className="evidence-records">{evidence.length ? evidence.map((item) => <article key={item.id}><div><h3>{item.title}</h3><p>{item.description || "No additional context"}</p><small>Submitted {formatDate(item.created_at)} · {item.latitude !== null ? "Location captured" : "No location pin"}</small></div><div><span className="draft-state">{item.phase}</span><span className="draft-state">{item.status.replaceAll("_", " ")}</span><a className="plain-link" href={item.file_url} target="_blank" rel="noreferrer">Open source</a></div></article>) : <p className="empty-copy">No evidence has been submitted. Add a link that a reviewer can open.</p>}</div>
+            <div className="evidence-records">{evidence.length ? evidence.map((item) => <article key={item.id}><div><h3>{item.title}</h3><p>{item.description || "No additional context"}</p><small>Submitted {formatDate(item.created_at)} · {item.latitude !== null ? "Location captured" : "No location pin"}</small></div><div><span className="draft-state">{item.phase}</span><span className="draft-state">{item.status.replaceAll("_", " ")}</span><a className="plain-link" href={item.displayUrl || item.file_url} target="_blank" rel="noreferrer">Open source</a></div></article>) : <p className="empty-copy">No evidence has been submitted. Add a link or upload a file that a reviewer can open.</p>}</div>
           </section>
 
           <section className="workspace-panel workspace-panel--wide">
