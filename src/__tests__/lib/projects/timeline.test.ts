@@ -75,6 +75,7 @@ describe("deriveProjectTimeline", () => {
             description: null,
             file_url: "https://example.com/before.jpg",
             file_hash: "abc",
+            storage_key: null,
             phase: "before",
             status: "ACCEPTED",
             latitude: null,

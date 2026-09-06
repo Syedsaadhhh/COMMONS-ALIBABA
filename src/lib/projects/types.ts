@@ -1,4 +1,5 @@
 import type { AIPlan } from "@/lib/ai/schema";
+import type { ImagePayload } from "@/lib/validation/problem";
 
 export interface Coordinates {
   latitude: number;
@@ -12,6 +13,23 @@ export interface ProjectDraftInput {
   imageUrl?: string;
   coordinates?: Coordinates | null;
   plan: AIPlan;
+  images?: ImagePayload[];
+}
+
+export interface ProjectImageRecord {
+  id: string;
+  project_id: string;
+  storage_path: string;
+  mime_type: string;
+  byte_size: number;
+  file_hash: string;
+  ordinal: number;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export interface ProjectImageDisplay extends ProjectImageRecord {
+  displayUrl: string;
 }
 
 export interface ProjectRecord {
@@ -68,11 +86,13 @@ export interface EvidenceRecord {
   description: string | null;
   file_url: string;
   file_hash: string;
+  storage_key: string | null;
   phase: EvidencePhase;
   status: "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "CLARIFICATION_REQUIRED";
   latitude: number | null;
   longitude: number | null;
   created_at: string;
+  displayUrl?: string | null;
 }
 
 export interface TaskEvidenceClaimRecord {
@@ -130,4 +150,5 @@ export interface ProjectBundle {
   corroboration: ProjectCorroborationRecord[];
   verificationReviews: ProjectVerificationReviewRecord[];
   statusHistory: ProjectStatusHistoryRecord[];
+  projectImages: ProjectImageDisplay[];
 }

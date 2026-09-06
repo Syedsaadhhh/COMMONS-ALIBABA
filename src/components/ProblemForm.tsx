@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { ImageUploader, type ValidatedImage } from "@/components/ImageUploader";
 import { problemSubmissionSchema } from "@/lib/validation/problem";
 import type { ProblemSubmission } from "@/lib/validation/problem";
 import type { AIPlan } from "@/lib/ai/schema";
@@ -28,7 +29,7 @@ export function ProblemForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [images, setImages] = useState<ValidatedImage[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<AIPlan | null>(null);
@@ -79,7 +80,7 @@ export function ProblemForm() {
       title,
       description,
       location,
-      imageUrl,
+      images: images.length > 0 ? images : undefined,
     });
 
     if (!result.success) {
@@ -105,7 +106,12 @@ export function ProblemForm() {
       const response = await fetch("/api/ai/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, location, imageUrl }),
+        body: JSON.stringify({
+          title,
+          description,
+          location,
+          images: images.length > 0 ? images : undefined,
+        }),
       });
 
       const data = await response.json();
@@ -139,7 +145,7 @@ export function ProblemForm() {
         title,
         description,
         location,
-        imageUrl,
+        images: images.length > 0 ? images : undefined,
       };
       const candidates = await findCandidateProjectsForDedup(submission);
       const decision = decideDuplicateOrCorroboration({
@@ -188,7 +194,12 @@ export function ProblemForm() {
     try {
       await addCorroboration({
         projectId: dedupDecision.matchedProjectId,
-        submission: { title, description, location, imageUrl },
+        submission: {
+          title,
+          description,
+          location,
+          images: images.length > 0 ? images : undefined,
+        },
         matchedBy: dedupDecision.matchedBy,
         similarityScore: dedupDecision.score,
       });
@@ -214,9 +225,9 @@ export function ProblemForm() {
         title,
         description,
         location,
-        imageUrl,
         coordinates,
         plan,
+        images: images.length > 0 ? images : undefined,
       });
       router.push(`/projects/${project.id}`);
     } catch (error) {
@@ -288,7 +299,7 @@ export function ProblemForm() {
             </div>
           </div>
 
-          <div className="problem-form__split">
+          <div>
             <Input
               label="Location"
               placeholder="Area, street, landmark or district"
@@ -298,17 +309,9 @@ export function ProblemForm() {
               maxLength={500}
               autoComplete="street-address"
             />
-
-            <Input
-              label="Supporting image link (optional)"
-              placeholder="https://..."
-              value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
-              error={errors.imageUrl}
-              inputMode="url"
-              autoComplete="url"
-            />
           </div>
+
+          <ImageUploader images={images} onChange={setImages} error={errors.images} />
 
           <div className="location-consent">
             <div>

@@ -8,8 +8,8 @@ COMMONS is a civic coordination platform built for the Alibaba Cloud AI Hackatho
 
 ## How it works
 
-1. A person reports a local problem with location and context.
-2. Qwen structures it into an objective, suggested tasks, KPIs, and evidence needs.
+1. A person reports a local problem with location, context, and optional photos.
+2. Qwen structures it into an objective, suggested tasks, KPIs, and evidence needs. When images are attached, a vision-capable model analyses them as supplementary scene context.
 3. A person reviews the draft and confirms the project.
 4. The project workspace tracks task status, sourced measurements, evidence references, task-linked proof, and optional consented location data.
 5. Duplicate or near-duplicate reports are surfaced for human choice so a person can corroborate an existing project instead of silently creating a duplicate.
@@ -20,11 +20,13 @@ Qwen assists with structure. It does not verify claims, approve evidence, or inv
 ## What is working now
 
 - Validated civic problem submission and structured Qwen planning
-- Human confirmation before a project is created
+- Multi-image upload (JPEG/PNG/WebP, mobile camera capture) with client-side compression and EXIF stripping
+- Multimodal Qwen vision analysis of uploaded images, with text-only and template fallbacks disclosed to the user
+- Human confirmation before a project is created; images persist to private Supabase Storage only after confirmation
 - Supabase-backed project, task, KPI, measurement, evidence, trust, and audit records
 - Anonymous project sessions with row-level security
 - Task status updates and KPI readings with a required source
-- Evidence-link check-ins with a SHA-256 reference fingerprint
+- Evidence-link check-ins with a SHA-256 reference fingerprint, plus optional file upload hashed client-side
 - Task-linked evidence claims and before/after evidence phases
 - Duplicate and near-duplicate detection with a human corroboration prompt
 - Corroboration count and trust timeline data
@@ -63,10 +65,12 @@ Apply the migrations in this order:
 7. `007_final_security_integrity.sql`
 8. `008_proof_loop.sql`
 9. `009_security_cleanup.sql`
+10. `010_project_images.sql`
+11. `011_evidence_media.sql`
 
 Then enable **Anonymous Sign-Ins** in Supabase Authentication.
 
-The final cleanup migration moves the membership helper out of the exposed `public` API schema, keeps service-only timeline writes restricted, makes trust-table Data API grants explicit, and adds covering indexes for foreign keys used by authorization and audit queries.
+The final cleanup migration moves the membership helper out of the exposed `public` API schema, keeps service-only timeline writes restricted, makes trust-table Data API grants explicit, and adds covering indexes for foreign keys used by authorization and audit queries. The image migrations add private Supabase Storage buckets and the `project_images` table, plus a `storage_key` column on `evidence` for optional file uploads.
 
 ## Verification
 

@@ -23,6 +23,7 @@ export const aiPlanSchema = z
     tasks: z.array(aiPlanTaskSchema).min(1),
     kpis: z.array(aiPlanKpiSchema).min(1),
     evidenceRequirements: z.array(z.string().min(1)).min(1),
+    visionUsed: z.boolean().optional(),
   })
   .strict();
 

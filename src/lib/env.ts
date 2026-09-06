@@ -12,6 +12,7 @@ export function getAiEnv() {
       process.env.DASHSCOPE_BASE_URL ||
       "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     model: process.env.DASHSCOPE_MODEL || "qwen-plus",
+    visionModel: process.env.DASHSCOPE_VISION_MODEL || null,
   };
 }
 
