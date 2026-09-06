@@ -298,6 +298,13 @@ describe("generatePlan", () => {
 
       const result = await generatePlan(submissionWithImages);
       expect(result.visionUsed).toBe(false);
+
+      const requestOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
+        body: string;
+      };
+      const body = JSON.parse(requestOptions.body);
+      const userMessage = body.messages.find((m: { role: string }) => m.role === "user");
+      expect(typeof userMessage.content).toBe("string");
     });
 
     it("sends multimodal content parts when images are present", async () => {
