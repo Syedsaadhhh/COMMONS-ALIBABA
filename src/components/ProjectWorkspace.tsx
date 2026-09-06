@@ -315,7 +315,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
   if (!bundle) return null;
 
-  const { project, tasks, kpis, evidence } = bundle;
+  const { project, tasks, kpis, evidence, projectImages } = bundle;
   const hasMap = project.latitude !== null && project.longitude !== null;
 
   return (
@@ -341,6 +341,26 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
           <article><span>Area</span><p>{project.location}</p></article>
           <article><span>Evidence</span><p>{evidence.length} submitted reference{evidence.length === 1 ? "" : "s"}</p></article>
         </section>
+
+        {projectImages.some((image) => image.displayUrl) && (
+          <section className="project-photo-strip" aria-label="Submitted project photos">
+            <div className="project-photo-strip__heading">
+              <div>
+                <p className="form-kicker">Submitted with the brief</p>
+                <h2>Project photos</h2>
+              </div>
+              <span>{projectImages.length} photo{projectImages.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="project-photo-strip__grid">
+              {projectImages.map((image, index) => image.displayUrl ? (
+                <a key={image.id} href={image.displayUrl} target="_blank" rel="noreferrer">
+                  <img src={image.displayUrl} alt={`${project.title} — submitted photo ${index + 1}`} loading="lazy" />
+                </a>
+              ) : null)}
+            </div>
+            <p>These photos provide context for the brief. They are not verified evidence.</p>
+          </section>
+        )}
 
         <BeforeAfterComparison evidence={evidence} />
 
