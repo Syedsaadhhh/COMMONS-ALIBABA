@@ -1,30 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProjectCard } from "@/components/ProjectCard";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { getSavedProjectBundles } from "@/lib/projects/client";
 import { deriveProjectTimeline } from "@/lib/projects/timeline";
 import type { ProjectBundle } from "@/lib/projects/types";
 
 type SortBy = "updated" | "created" | "corroboration" | "verified";
 
-export function ProjectRegistry() {
-  const [bundles, setBundles] = useState<ProjectBundle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface ProjectRegistryProps {
+  bundles: ProjectBundle[];
+  loadError?: string | null;
+}
+
+export function ProjectRegistry({ bundles, loadError = null }: ProjectRegistryProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectBundle["project"]["status"]>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updated");
-
-  useEffect(() => {
-    getSavedProjectBundles()
-      .then(setBundles)
-      .catch((loadError) => {
-        setError(loadError instanceof Error ? loadError.message : "Projects could not be loaded.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -65,40 +57,37 @@ export function ProjectRegistry() {
           <p className="eyebrow">Project registry</p>
           <h1 className="section-heading">Confirmed civic work, kept accountable.</h1>
           <p className="section-copy">
-            Each record carries the confirmed brief, work status, measurements,
-            evidence references, and an optional consented location pin.
+            This read-only showcase presents confirmed briefs, work status,
+            tasks, and measurement plans from the submitted hackathon build.
           </p>
         </div>
         <ButtonLink href="/submit" size="lg">Create a civic brief</ButtonLink>
       </div>
 
       <div className="shell registry-list" aria-live="polite">
-        {loading && <p className="registry-loading">Loading your project records…</p>}
-
-        {!loading && error && (
+        {loadError && (
           <section className="form-message form-message--error">
             <span aria-hidden="true">!</span>
             <div>
               <h2>Projects could not be loaded.</h2>
-              <p>{error}</p>
+              <p>{loadError}</p>
             </div>
           </section>
         )}
 
-        {!loading && !error && bundles.length === 0 && (
+        {!loadError && bundles.length === 0 && (
           <section className="registry-empty__main registry-empty__main--compact">
             <span className="registry-empty__mark" aria-hidden="true"><i /><i /><i /></span>
-            <p className="form-kicker">No confirmed projects</p>
-            <h2>Start with an observed local problem.</h2>
+            <p className="form-kicker">No showcase projects</p>
+            <h2>The submitted project records are temporarily unavailable.</h2>
             <p>
-              The registry only displays records you confirm. It never uses sample
-              projects, made-up status, or manufactured impact.
+              You can still create a civic brief while the registry reconnects.
             </p>
             <ButtonLink href="/submit" variant="outline">Create the first brief</ButtonLink>
           </section>
         )}
 
-        {!loading && !error && bundles.length > 0 && (
+        {!loadError && bundles.length > 0 && (
           <>
             <div className="registry-controls">
               <input
@@ -134,7 +123,7 @@ export function ProjectRegistry() {
             {filtered.length === 0 ? (
               <p className="empty-copy">No projects match your filters.</p>
             ) : (
-              <section className="project-card-grid" aria-label="Saved projects">
+              <section className="project-card-grid" aria-label="Hackathon project showcase">
                 {filtered.map((bundle) => {
                   const { project, tasks, kpis, evidence } = bundle;
                   return (
@@ -165,7 +154,6 @@ export function ProjectRegistry() {
                         reviewerDisplayName: null,
                         submitterDisplayName: null,
                       }}
-                      href={`/projects/${project.id}`}
                     />
                   );
                 })}
